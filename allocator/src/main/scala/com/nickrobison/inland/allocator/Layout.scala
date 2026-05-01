@@ -7,8 +7,8 @@ trait Layout[A] {
 
   def byteSize: Long = memoryLayout.byteSize()
 
-  def write(offset: Long, value: A)(using segment: MemorySegment): Unit
-  def read(offset: Long)(using segment: MemorySegment): A
+  def write(offset: Long, value: A)(implicit segment: MemorySegment): Unit
+  def read(offset: Long)(implicit segment: MemorySegment): A
 }
 
 object Layout {

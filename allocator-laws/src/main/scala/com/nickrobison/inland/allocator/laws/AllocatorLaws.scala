@@ -16,7 +16,7 @@ trait AllocatorLaws[A] extends Laws {
   implicit def eq: Eq[A]
   implicit def countArb: Arbitrary[Int] = Arbitrary(Gen.choose(1, 100))
 
-  def laws = AllocatorProperties(
+  def laws = new AllocatorProperties(
     name = "allocator",
     parent = None,
     "size" -> sizeLaws(),
@@ -82,11 +82,11 @@ trait AllocatorLaws[A] extends Laws {
                            name: String,
                            parent: Option[AllocatorProperties],
                            props: (String, Prop)*
-                           ) extends DefaultRuleSet(name, parent, props*)
+                           ) extends DefaultRuleSet(name, parent, props: _*)
 }
 
 object AllocatorLaws {
-  def apply[A: {Layout, Eq}](na: NativeAllocator)(implicit arb: Arbitrary[A]): AllocatorLaws[A] = new AllocatorLaws[A] {
+  def apply[A: Layout: Eq](na: NativeAllocator)(implicit arb: Arbitrary[A]): AllocatorLaws[A] = new AllocatorLaws[A] {
     override def allocator: NativeAllocator = na
 
     override def arbA: Arbitrary[A] = arb
