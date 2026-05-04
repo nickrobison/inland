@@ -82,7 +82,7 @@ trait AllocatorLaws[A] extends Laws {
                            name: String,
                            parent: Option[AllocatorProperties],
                            props: (String, Prop)*
-                           ) extends DefaultRuleSet(name, parent, props: _*)
+                           ) extends DefaultRuleSet(name, parent, props*)
 }
 
 object AllocatorLaws {
