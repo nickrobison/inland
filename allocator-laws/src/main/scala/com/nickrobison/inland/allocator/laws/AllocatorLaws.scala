@@ -86,7 +86,7 @@ trait AllocatorLaws[A] extends Laws {
 }
 
 object AllocatorLaws {
-  def apply[A: Layout: Eq](na: NativeAllocator)(implicit arb: Arbitrary[A]): AllocatorLaws[A] = new AllocatorLaws[A] {
+  def apply[A: {Layout, Eq}](na: NativeAllocator)(implicit arb: Arbitrary[A]): AllocatorLaws[A] = new AllocatorLaws[A] {
     override def allocator: NativeAllocator = na
 
     override def arbA: Arbitrary[A] = arb
