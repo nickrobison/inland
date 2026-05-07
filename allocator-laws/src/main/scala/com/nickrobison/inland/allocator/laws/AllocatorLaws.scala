@@ -21,9 +21,12 @@ trait AllocatorLaws[A] extends Laws {
     parent = None,
     "size" -> sizeLaws(),
     "alignment" -> alignmentLaws(8),
-    // "isolation" -> isolationLaws(), // Later
+    "isolation" -> isolationLaws(),
     "free" -> freeLaws(),
-    "allocated" -> allocatedLaws()
+    "allocated" -> allocatedLaws(),
+    "reallocate preserves contents" -> reallocatePreservesContentsLaws(),
+    "reallocate size matches" -> reallocateSizeMatchesLaws(),
+    "reallocate shrinks correctly" -> reallocateShrinksCorrectlyLaws()
   )
 
   private def sizeLaws(): Prop = {
@@ -42,10 +45,23 @@ trait AllocatorLaws[A] extends Laws {
   }
 
   private def isolationLaws(): Prop = {
-    forAll { (count: Int) =>
-      val a = allocator.allocate[A](count)
-      val b = allocator.allocate[A](count)
-      (a.address() != b.address()) || (a eq b)
+    forAll { (count: Int, valueA: A, valueB: A) =>
+      if (count > 0 && Eq[A].neqv(valueA, valueB)) {
+        val a = allocator.allocate[A](count)
+        val b = allocator.allocate[A](count)
+
+        // Write different values to each segment
+        layout.write(0, valueA)(a)
+        layout.write(0, valueB)(b)
+
+        // Read back and verify they have different values
+        val readA = layout.read(0)(a)
+        val readB = layout.read(0)(b)
+
+        Eq[A].eqv(readA, valueA) && Eq[A].eqv(readB, valueB) && Eq[A].neqv(readA, readB)
+      } else {
+        true // Skip test for non-positive counts or identical values
+      }
     }
   }
 
@@ -72,6 +88,63 @@ trait AllocatorLaws[A] extends Laws {
         }
 
         Eq[Seq[A]].eqv(values, read)
+      } else {
+        true
+      }
+    }
+  }
+
+  private def reallocatePreservesContentsLaws(): Prop = {
+    forAll { (values: Seq[A], newCount: Int) =>
+      if (values.nonEmpty && newCount > values.length) {
+        val oldSegment = allocator.allocate[A](values.length)
+        values.zipWithIndex.foreach { case (v, idx) =>
+          layout.write(idx, v)(oldSegment)
+        }
+
+        val newSegment = allocator.reallocate[A](oldSegment, values.length, newCount)
+
+        // Check that original values are preserved
+        val preserved = values.indices.forall { idx =>
+          Eq[A].eqv(layout.read(idx)(oldSegment), layout.read(idx)(newSegment))
+        }
+
+        preserved
+      } else {
+        true
+      }
+    }
+  }
+
+  private def reallocateSizeMatchesLaws(): Prop = {
+    forAll { (oldCount: Int, newCount: Int) =>
+      if (oldCount > 0 && newCount > 0) {
+        val oldSegment = allocator.allocate[A](oldCount)
+        val newSegment = allocator.reallocate[A](oldSegment, oldCount, newCount)
+
+        newSegment.byteSize() >= (newCount * layout.byteSize)
+      } else {
+        true
+      }
+    }
+  }
+
+  private def reallocateShrinksCorrectlyLaws(): Prop = {
+    forAll { (values: Seq[A], newCount: Int) =>
+      if (values.nonEmpty && newCount > 0 && newCount < values.length) {
+        val oldSegment = allocator.allocate[A](values.length)
+        values.zipWithIndex.foreach { case (v, idx) =>
+          layout.write(idx, v)(oldSegment)
+        }
+
+        val newSegment = allocator.reallocate[A](oldSegment, values.length, newCount)
+
+        // Check that values within new bounds are preserved
+        val preserved = (0 until newCount).forall { idx =>
+          Eq[A].eqv(layout.read(idx)(oldSegment), layout.read(idx)(newSegment))
+        }
+
+        preserved
       } else {
         true
       }

@@ -14,7 +14,11 @@ class HeapAllocator extends NativeAllocator {
   override def reallocate[A: Layout](old: MemorySegment, oldCount: Long, newCount: Long): MemorySegment = {
     val size = alignedSize(Layout[A].byteSize * newCount)
     val newSegment = MemorySegment.ofArray(new Array[Byte](size.toInt))
-    MemorySegment.copy(old, 0, newSegment, 0, oldCount)
+    val elementsToCopy = oldCount.min(newCount)
+    val bytesToCopy = (elementsToCopy * Layout[A].byteSize).min(old.byteSize()).toInt
+    if (bytesToCopy > 0) {
+      MemorySegment.copy(old, 0, newSegment, 0, bytesToCopy)
+    }
     newSegment
   }
 
