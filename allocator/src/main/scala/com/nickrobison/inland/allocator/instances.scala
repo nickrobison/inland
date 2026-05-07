@@ -6,13 +6,19 @@ object instances {
 
   implicit object IntLayout extends Layout[Int] {
 
-    // FIXME: Well, this is awful
-    override def memoryLayout: MemoryLayout = ValueLayout.JAVA_INT_UNALIGNED
+    override def memoryLayout: MemoryLayout = ValueLayout.JAVA_INT
 
-    private val handle = ValueLayout.JAVA_INT.varHandle()
+    override def write(offset: Long, value: Int)(implicit segment: MemorySegment): Unit = segment.setAtIndex(ValueLayout.JAVA_INT, offset, value)
 
-    override def write(offset: Long, value: Int)(implicit segment: MemorySegment): Unit = segment.setAtIndex(ValueLayout.JAVA_INT_UNALIGNED, offset, value)
+    override def read(offset: Long)(implicit segment: MemorySegment): Int = segment.getAtIndex(ValueLayout.JAVA_INT, offset)
+  }
 
-    override def read(offset: Long)(implicit segment: MemorySegment): Int = segment.getAtIndex(ValueLayout.JAVA_INT_UNALIGNED, offset)
+  implicit object DoubleLayout extends Layout[Double] {
+
+    override def memoryLayout: MemoryLayout = ValueLayout.JAVA_DOUBLE_UNALIGNED
+
+    override def write(offset: Long, value: Double)(implicit segment: MemorySegment): Unit = segment.setAtIndex(ValueLayout.JAVA_DOUBLE_UNALIGNED, offset, value)
+
+    override def read(offset: Long)(implicit segment: MemorySegment): Double = segment.getAtIndex(ValueLayout.JAVA_DOUBLE_UNALIGNED, offset)
   }
 }

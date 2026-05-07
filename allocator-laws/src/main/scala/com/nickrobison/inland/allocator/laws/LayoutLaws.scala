@@ -13,13 +13,15 @@ trait LayoutLaws[A] extends Laws {
   implicit def layout: Layout[A]
   implicit def arbA: Arbitrary[A]
   implicit def eq: Eq[A]
+  implicit def countArb: Arbitrary[Int] = Arbitrary(Gen.choose(1, 100))
 
   def laws = new LayoutProperties(
     name = "layout",
     parent = None,
     "write read consistency" -> writeReadConsistencyLaws(),
     "byte size consistency" -> byteSizeConsistencyLaws(),
-    "sequential writes" -> sequentialWritesLaws()
+    "sequential writes" -> sequentialWritesLaws(),
+    "non-aliasing writes" -> nonAliasingWritesLaws()
   )
 
   private def writeReadConsistencyLaws(): Prop = {
@@ -27,8 +29,8 @@ trait LayoutLaws[A] extends Laws {
       val allocator = new HeapAllocator()
       val segment = allocator.allocate[A](1)
 
-      layout.write(0, value)(segment)
-      val readValue = layout.read(0)(segment)
+      layout.write(0, value)(using segment)
+      val readValue = layout.read(0)(using segment)
 
       Eq[A].eqv(value, readValue)
     }
@@ -61,6 +63,27 @@ trait LayoutLaws[A] extends Laws {
     }
   }
 
+  private def nonAliasingWritesLaws(): Prop = {
+    forAll { (valueA: A, valueB: A) =>
+      if (Eq[A].neqv(valueA, valueB)) {
+        val allocator = new HeapAllocator()
+        val segment = allocator.allocate[A](2)
+
+        // Write different values at offset 0 and offset 1
+        layout.write(0, valueA)(segment)
+        layout.write(1, valueB)(segment)
+
+        // Read back and verify they have different values
+        val readA = layout.read(0)(segment)
+        val readB = layout.read(1)(segment)
+
+        Eq[A].eqv(readA, valueA) && Eq[A].eqv(readB, valueB) && Eq[A].neqv(readA, readB)
+      } else {
+        true // Skip test for identical values
+      }
+    }
+  }
+
   class LayoutProperties(
                          name: String,
                          parent: Option[LayoutProperties],
@@ -69,9 +92,11 @@ trait LayoutLaws[A] extends Laws {
 }
 
 object LayoutLaws {
-  def apply[A: {Layout, Eq}](implicit arb: Arbitrary[A]): LayoutLaws[A] = new LayoutLaws[A] {
-    override implicit def layout: Layout[A] = Layout[A]
+  def apply[A: Layout](implicit l: Layout[A], arb: Arbitrary[A], eqz: Eq[A]): LayoutLaws[A] = new LayoutLaws[A] {
+    override implicit def layout: Layout[A] = l
     override implicit def arbA: Arbitrary[A] = arb
-    override implicit def eq: Eq[A] = Eq[A]
+    override implicit def eq: Eq[A] = eqz
   }
 }
+
+
