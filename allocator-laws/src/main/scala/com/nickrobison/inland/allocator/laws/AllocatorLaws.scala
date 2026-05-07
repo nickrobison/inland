@@ -99,14 +99,14 @@ trait AllocatorLaws[A] extends Laws {
       if (values.nonEmpty && newCount > values.length) {
         val oldSegment = allocator.allocate[A](values.length)
         values.zipWithIndex.foreach { case (v, idx) =>
-          layout.write(idx, v)(oldSegment)
+          layout.write(idx, v)(using oldSegment)
         }
 
         val newSegment = allocator.reallocate[A](oldSegment, values.length, newCount)
 
         // Check that original values are preserved
         val preserved = values.indices.forall { idx =>
-          Eq[A].eqv(layout.read(idx)(oldSegment), layout.read(idx)(newSegment))
+          Eq[A].eqv(layout.read(idx)(using oldSegment), layout.read(idx)(newSegment))
         }
 
         preserved
@@ -134,14 +134,14 @@ trait AllocatorLaws[A] extends Laws {
       if (values.nonEmpty && newCount > 0 && newCount < values.length) {
         val oldSegment = allocator.allocate[A](values.length)
         values.zipWithIndex.foreach { case (v, idx) =>
-          layout.write(idx, v)(oldSegment)
+          layout.write(idx, v)(using oldSegment)
         }
 
         val newSegment = allocator.reallocate[A](oldSegment, values.length, newCount)
 
         // Check that values within new bounds are preserved
         val preserved = (0 until newCount).forall { idx =>
-          Eq[A].eqv(layout.read(idx)(oldSegment), layout.read(idx)(newSegment))
+          Eq[A].eqv(layout.read(idx)(using oldSegment), layout.read(idx)(newSegment))
         }
 
         preserved

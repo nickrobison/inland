@@ -1,12 +1,12 @@
 package com.nickrobison.inland.allocator.tests
 
 import com.nickrobison.inland.allocator.HeapAllocator
-import com.nickrobison.inland.allocator.instances.{IntLayout, DoubleLayout, LongLayout, FloatLayout, ByteLayout, CharLayout}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.Checkers
 import org.typelevel.discipline.scalatest.{Discipline, FunSuiteDiscipline}
 import com.nickrobison.inland.allocator.laws.{AllocatorLaws, LayoutLaws}
-import cats.implicits._
+import cats.implicits.*
+import com.nickrobison.inland.allocator.instances.given
 
 class LawTests extends AnyFunSuite with FunSuiteDiscipline with Checkers {
 
