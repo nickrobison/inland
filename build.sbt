@@ -18,7 +18,9 @@ lazy val types = (project in file("types"))
   .settings(commonSettings)
   .settings(
     name := "types",
-    libraryDependencies += "io.github.iltotore" %% "iron" % "3.3.1"
+    libraryDependencies += "io.github.iltotore" %% "iron" % "3.3.1",
+    libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.17.1" % Test,
+    libraryDependencies += "org.scalatestplus" %% "scalacheck-1-17" % "3.2.18.0" % Test
   )
 
 // Native Allocator
