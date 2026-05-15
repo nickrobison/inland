@@ -14,8 +14,8 @@ class NativeVectorLawTests extends AnyFunSuite with FunSuiteDiscipline with Chec
   given NativeAllocator = ArenaAllocator(128000L)
 
   checkAll("NativeVector[Int]", NativeVectorLaws[Int].nativeVectorLaws)
-//  checkAll("NativeVector[Double]", NativeVectorLaws[Double](using summon, HeapAllocator(), summon).nativeVectorLaws)
-//  checkAll("NativeVector[Long]", NativeVectorLaws[Long](using summon, HeapAllocator(), summon).nativeVectorLaws)
+  checkAll("NativeVector[Double]", NativeVectorLaws[Double](using summon, HeapAllocator(), summon).nativeVectorLaws)
+  checkAll("NativeVector[Long]", NativeVectorLaws[Long](using summon, HeapAllocator(), summon).nativeVectorLaws)
 
 }
 

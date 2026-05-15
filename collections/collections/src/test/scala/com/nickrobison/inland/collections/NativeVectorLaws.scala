@@ -19,6 +19,8 @@ class NativeVectorLaws[A](using layout: Layout[A], allocator: NativeAllocator, a
     "insert then apply" -> insertThenApply(),
     "remove decreases length" -> removeDecreasesLength(),
     "remove returns correct element" -> removeReturnsCorrectElement(),
+    "insert shifts elements right" -> insertShiftsRight(),
+    "insert preserves all elements" -> insertPreservesAllElements(),
   )
 
   // ── laws ──────────────────────────────────────────────────────────
@@ -111,6 +113,36 @@ class NativeVectorLaws[A](using layout: Layout[A], allocator: NativeAllocator, a
         values.foreach(vec.addOne)
         val removed = vec.remove(0)
         removed == values.head && vec.length == values.length - 1
+      } else {
+        true
+      }
+    }
+  }
+
+  private def insertShiftsRight(): Prop = {
+    forAll { (before: Seq[A], elem: A) =>
+      if (before.nonEmpty && before.length <= 64) {
+        val vec = NativeVector[A](before.length)
+        before.foreach(vec.addOne)
+        val idx = before.length / 2
+        vec.insert(idx, elem)
+        vec(idx) == elem && vec(idx + 1) == before(idx)
+      } else {
+        true
+      }
+    }
+  }
+
+  private def insertPreservesAllElements(): Prop = {
+    forAll { (before: Seq[A], elem: A) =>
+      if (before.nonEmpty && before.length <= 63) {
+        val vec = NativeVector[A](before.length)
+        before.foreach(vec.addOne)
+        val idx = before.length / 2
+        vec.insert(idx, elem)
+        val expected = before.take(idx) ++ Seq(elem) ++ before.drop(idx)
+        val actual = (0 until vec.length).map(vec.apply).toSeq
+        actual == expected
       } else {
         true
       }

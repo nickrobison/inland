@@ -5,7 +5,7 @@ import com.nickrobison.inland.allocator.{CommonErrors, Layout, NativeAllocator}
 import java.lang.foreign.MemorySegment
 import scala.collection.mutable
 
-class NativeVector[A: Layout] private(private var storage: MemorySegment, initialSize: Int)(implicit allocator: NativeAllocator) extends mutable.AbstractBuffer[A] {
+class NativeVector[A: Layout] private(private[collections] var storage: MemorySegment, initialSize: Int)(implicit allocator: NativeAllocator) extends mutable.AbstractBuffer[A] {
 
   private var currentSize: Int = 0
 
