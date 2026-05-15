@@ -66,8 +66,26 @@ lazy val executorRoot = (project in file("executor"))
     name := "executor-root"
   )
 
+// Collections
+lazy val collections = (project in file("collections/collections"))
+  .dependsOn(allocator)
+  .settings(commonSettings)
+  .settings(
+    name := "collections",
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "discipline-core" % "1.7.0" % Test,
+      "org.typelevel" %% "discipline-scalatest" % "2.3.0" % Test
+    )
+  )
+
+lazy val collectionsRoot = (project in file("collections"))
+  .aggregate(collections)
+  .settings(
+    name := "collections-root"
+  )
+
 lazy val root = (project in file("."))
-  .aggregate(allocator, allocatorLaws, allocatorTests, executorRoot)
+  .aggregate(allocator, allocatorLaws, allocatorTests, executorRoot, types, collectionsRoot)
   .settings(
     name := "inland",
     idePackagePrefix := Some("com.nickrobison.inland")
