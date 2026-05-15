@@ -12,6 +12,15 @@ lazy val commonSettings = Seq(
   )
 )
 
+// Core types
+
+lazy val types = (project in file("types"))
+  .settings(commonSettings)
+  .settings(
+    name := "types",
+    libraryDependencies += "io.github.iltotore" %% "iron" % "3.3.1"
+  )
+
 // Native Allocator
 
 lazy val allocator = (project in file("allocator"))
