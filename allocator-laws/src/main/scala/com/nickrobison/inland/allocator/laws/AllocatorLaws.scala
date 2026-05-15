@@ -51,12 +51,12 @@ trait AllocatorLaws[A] extends Laws {
         val b = allocator.allocate[A](count)
 
         // Write different values to each segment
-        layout.write(0, valueA)(a)
-        layout.write(0, valueB)(b)
+        layout.write(0, valueA)(using a)
+        layout.write(0, valueB)(using b)
 
         // Read back and verify they have different values
-        val readA = layout.read(0)(a)
-        val readB = layout.read(0)(b)
+        val readA = layout.read(0)(using a)
+        val readB = layout.read(0)(using b)
 
         Eq[A].eqv(readA, valueA) && Eq[A].eqv(readB, valueB) && Eq[A].neqv(readA, readB)
       } else {
@@ -106,7 +106,7 @@ trait AllocatorLaws[A] extends Laws {
 
         // Check that original values are preserved
         val preserved = values.indices.forall { idx =>
-          Eq[A].eqv(layout.read(idx)(using oldSegment), layout.read(idx)(newSegment))
+          Eq[A].eqv(layout.read(idx)(using oldSegment), layout.read(idx)(using newSegment))
         }
 
         preserved
@@ -141,7 +141,7 @@ trait AllocatorLaws[A] extends Laws {
 
         // Check that values within new bounds are preserved
         val preserved = (0 until newCount).forall { idx =>
-          Eq[A].eqv(layout.read(idx)(using oldSegment), layout.read(idx)(newSegment))
+          Eq[A].eqv(layout.read(idx)(using oldSegment), layout.read(idx)(using newSegment))
         }
 
         preserved

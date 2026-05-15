@@ -27,7 +27,7 @@ class NativeVector[A: Layout] private(private var storage: MemorySegment, initia
     checkWithinBounds(idx, idx + 1)
     val res = this(idx)
     val srcOffset = (idx + 1) * Layout[A].byteSize
-    val destOffset = (idx) * Layout[A].byteSize
+    val destOffset = idx * Layout[A].byteSize
     val bytesToCopy = (currentSize - (idx + 1)) * Layout[A].byteSize
     MemorySegment.copy(this.storage, srcOffset, this.storage, destOffset, bytesToCopy)
     reduceToSize(currentSize - 1)
@@ -74,5 +74,13 @@ class NativeVector[A: Layout] private(private var storage: MemorySegment, initia
   private def reduceToSize(n: Int): Unit = {
     // TODO: We probably need to zero out things here
     currentSize = n
+  }
+}
+
+object NativeVector {
+  /** Create a new NativeVector with the given initial capacity. */
+  def apply[A: Layout](initialSize: Int)(implicit allocator: NativeAllocator): NativeVector[A] = {
+    val storage = allocator.allocate[A](initialSize)
+    new NativeVector[A](storage, initialSize)
   }
 }
