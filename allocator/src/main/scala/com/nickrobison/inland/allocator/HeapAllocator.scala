@@ -1,6 +1,6 @@
 package com.nickrobison.inland.allocator
 
-import java.lang.foreign.{Arena, MemorySegment}
+import java.lang.foreign.MemorySegment
 import java.nio.ByteBuffer
 
 class HeapAllocator extends NativeAllocator {
