@@ -113,37 +113,37 @@ class BytesPropertyTests extends AnyFunSuite with Matchers with Checkers {
 
   test("double kb conversion matches long kb") {
     check(forAll { (n: Int) =>
-      (n.toDouble).kb.rawValue == n.kb.rawValue
+      n.toDouble.kb.rawValue == n.kb.rawValue
     })
   }
 
   test("double mb conversion matches long mb") {
     check(forAll { (n: Int) =>
-      (n.toDouble).mb.rawValue == n.mb.rawValue
+      n.toDouble.mb.rawValue == n.mb.rawValue
     })
   }
 
   test("double gb conversion matches long gb") {
     check(forAll { (n: Int) =>
-      (n.toDouble).gb.rawValue == n.gb.rawValue
+      n.toDouble.gb.rawValue == n.gb.rawValue
     })
   }
 
   test("double kib conversion matches long kib") {
     check(forAll { (n: Int) =>
-      (n.toDouble).kib.rawValue == n.kib.rawValue
+      n.toDouble.kib.rawValue == n.kib.rawValue
     })
   }
 
   test("double mib conversion matches long mib") {
     check(forAll { (n: Int) =>
-      (n.toDouble).mib.rawValue == n.mib.rawValue
+      n.toDouble.mib.rawValue == n.mib.rawValue
     })
   }
 
   test("double gib conversion matches long gib") {
     check(forAll { (n: Int) =>
-      (n.toDouble).gib.rawValue == n.gib.rawValue
+      n.toDouble.gib.rawValue == n.gib.rawValue
     })
   }
 

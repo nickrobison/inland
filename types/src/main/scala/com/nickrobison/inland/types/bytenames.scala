@@ -5,15 +5,15 @@ package com.nickrobison.inland.types
  * Decimal: powers of 1000 (kB, MB, GB, TB)
  * Binary: powers of 1024 (KiB, MiB, GiB, TiB)
  */
-private val DECIMAL_KB = 1000L
-private val DECIMAL_MB = DECIMAL_KB * 1000L
-private val DECIMAL_GB = DECIMAL_MB * 1000L
-private val DECIMAL_TB = DECIMAL_GB * 1000L
+private inline val DECIMAL_KB = 1000L
+private inline val DECIMAL_MB = DECIMAL_KB * 1000L
+private inline val DECIMAL_GB = DECIMAL_MB * 1000L
+private inline val DECIMAL_TB = DECIMAL_GB * 1000L
 
-private val BINARY_KIB = 1024L
-private val BINARY_MIB = BINARY_KIB * 1024L
-private val BINARY_GIB = BINARY_MIB * 1024L
-private val BINARY_TIB = BINARY_GIB * 1024L
+private inline val BINARY_KIB = 1024L
+private inline val BINARY_MIB = BINARY_KIB * 1024L
+private inline val BINARY_GIB = BINARY_MIB * 1024L
+private inline val BINARY_TIB = BINARY_GIB * 1024L
 
 /**
  * Extensions on Long for creating Bytes instances with various units

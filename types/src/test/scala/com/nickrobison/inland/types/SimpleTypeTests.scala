@@ -46,8 +46,8 @@ class SimpleTypeTests extends AnyFunSuite with Matchers {
   }
 
   test("double bytes helpers create correct values") {
-    (1.5).mb.rawValue shouldBe 1500000L
-    (2.5).kib.rawValue shouldBe 2560L
+    1.5.mb.rawValue shouldBe 1500000L
+    2.5.kib.rawValue shouldBe 2560L
   }
 
   test("rawValue returns underlying long") {
