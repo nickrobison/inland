@@ -141,7 +141,7 @@ class NativeVectorLaws[A](using layout: Layout[A], allocator: NativeAllocator, a
         val idx = before.length / 2
         vec.insert(idx, elem)
         val expected = before.take(idx) ++ Seq(elem) ++ before.drop(idx)
-        val actual = (0 until vec.length).map(vec.apply).toSeq
+        val actual = (0 until vec.length).map(vec.apply)
         actual == expected
       } else {
         true

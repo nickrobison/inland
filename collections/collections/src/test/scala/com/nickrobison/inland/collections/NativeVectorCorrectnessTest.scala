@@ -25,7 +25,7 @@ class NativeVectorCorrectnessTest extends AnyFunSuite {
 
   /** Dump the raw bytes of a segment as a hex string for diagnostics. */
   private def hexDump(seg: MemorySegment, max: Int = 256): String = {
-    val n = (seg.byteSize().min(max)).toInt
+    val n = seg.byteSize().min(max).toInt
     val buf = new StringBuilder(n * 3)
     var i = 0
     while (i < n) {
@@ -403,8 +403,8 @@ class NativeVectorCorrectnessTest extends AnyFunSuite {
     assert(v.length == 4)
     assert(raw.get(intLayout, 0L) == 5)
     assert(raw.get(intLayout, SZ.toLong) == 10)
-    assert(raw.get(intLayout, (2L * SZ)) == 20)
-    assert(raw.get(intLayout, (3L * SZ)) == 40)
+    assert(raw.get(intLayout, 2L * SZ) == 20)
+    assert(raw.get(intLayout, 3L * SZ) == 40)
   }
 
   test("combined: repeated insert at front followed by reads") {

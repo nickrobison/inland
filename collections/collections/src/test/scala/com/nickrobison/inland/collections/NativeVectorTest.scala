@@ -53,7 +53,7 @@ class NativeVectorTest extends AnyFunSuite {
   test("addOne then apply returns same element") {
     val v = NativeVector[Int](16)
     v.addOne(42)
-    assert(v(0) == 42)
+    assert(v.head == 42)
   }
 
   test("addOne increases length by 1") {
@@ -68,7 +68,7 @@ class NativeVectorTest extends AnyFunSuite {
     val elems = List(10, 20, 30, 40, 50)
     elems.foreach(v.addOne)
     assert(v.length == elems.length)
-    assert(v(0) == 10)
+    assert(v.head == 10)
     assert(v(1) == 20)
     assert(v(2) == 30)
     assert(v(3) == 40)
@@ -99,7 +99,7 @@ class NativeVectorTest extends AnyFunSuite {
     val v = NativeVector[Int](16)
     v.insert(0, 99)
     assert(v.length == 1)
-    assert(v(0) == 99)
+    assert(v.head == 99)
   }
 
   test("insert at end equals addOne") {
@@ -107,7 +107,7 @@ class NativeVectorTest extends AnyFunSuite {
     v.insert(0, 10)
     v.insert(1, 20)
     assert(v.length == 2)
-    assert(v(0) == 10)
+    assert(v.head == 10)
     assert(v(1) == 20)
   }
 
@@ -121,7 +121,7 @@ class NativeVectorTest extends AnyFunSuite {
     v.addOne(3)
     v.insert(0, 99)
     assert(v.length == 4)
-    assert(v(0) == 99, "head should be new element")
+    assert(v.head == 99, "head should be new element")
     assert(v(1) == 1, "existing element at idx=0 should shift to idx=1")
     assert(v(2) == 2, "existing element at idx=1 should shift to idx=2")
     assert(v(3) == 3, "existing element at idx=2 should shift to idx=3")
@@ -135,7 +135,7 @@ class NativeVectorTest extends AnyFunSuite {
     val v = filledIntVector(5)
     v.insert(2, 99)
     assert(v.length == 6)
-    assert(v(0) == 0)
+    assert(v.head == 0)
     assert(v(1) == 1)
     assert(v(2) == 99)
     assert(v(3) == 2)
@@ -147,7 +147,7 @@ class NativeVectorTest extends AnyFunSuite {
     val v = filledIntVector(3)
     v.insert(3, 99)
     assert(v.length == 4)
-    assert(v(0) == 0)
+    assert(v.head == 0)
     assert(v(1) == 1)
     assert(v(2) == 2)
     assert(v(3) == 99)
@@ -157,7 +157,7 @@ class NativeVectorTest extends AnyFunSuite {
     val v = NativeVector[Int](4)
     v.insert(0, 10)
     v.insert(1, 20) // append after growth
-    assert(v(0) == 10)
+    assert(v.head == 10)
     assert(v(1) == 20)
   }
 
@@ -182,7 +182,7 @@ class NativeVectorTest extends AnyFunSuite {
     v.insert(0, 1)
     v.insert(0, 0)
     assert(v.length == 3)
-    assert(v(0) == 0)
+    assert(v.head == 0)
     assert(v(1) == 1)
     assert(v(2) == 2)
   }
@@ -194,7 +194,7 @@ class NativeVectorTest extends AnyFunSuite {
     v.addOne(30)
     v.insert(1, 20)
     assert(v.length == 3)
-    assert(v(0) == 10)
+    assert(v.head == 10)
     assert(v(1) == 20)
     assert(v(2) == 30)
   }
@@ -206,7 +206,7 @@ class NativeVectorTest extends AnyFunSuite {
     val v = filledIntVector(3)
     v.prepend(99)
     assert(v.length == 4)
-    assert(v(0) == 99)
+    assert(v.head == 99)
     assert(v(1) == 0)
     assert(v(2) == 1)
     assert(v(3) == 2)
@@ -220,7 +220,7 @@ class NativeVectorTest extends AnyFunSuite {
     v.prepend(1)
     v.prepend(0)
     assert(v.length == 4)
-    assert(v(0) == 0)
+    assert(v.head == 0)
     assert(v(1) == 1)
     assert(v(2) == 2)
     assert(v(3) == 3)
@@ -234,7 +234,7 @@ class NativeVectorTest extends AnyFunSuite {
     val removed = v.remove(0)
     assert(removed == 0)
     assert(v.length == 4)
-    assert(v(0) == 1)
+    assert(v.head == 1)
     assert(v(1) == 2)
     assert(v(2) == 3)
     assert(v(3) == 4)
@@ -245,7 +245,7 @@ class NativeVectorTest extends AnyFunSuite {
     val removed = v.remove(2)
     assert(removed == 2)
     assert(v.length == 4)
-    assert(v(0) == 0)
+    assert(v.head == 0)
     assert(v(1) == 1)
     assert(v(2) == 3)
     assert(v(3) == 4)
@@ -257,7 +257,7 @@ class NativeVectorTest extends AnyFunSuite {
     val removed = v.remove(4)
     assert(removed == 4)
     assert(v.length == 4)
-    assert(v(0) == 0)
+    assert(v.head == 0)
     assert(v(1) == 1)
     assert(v(2) == 2)
     assert(v(3) == 3)
@@ -276,7 +276,7 @@ class NativeVectorTest extends AnyFunSuite {
     val removed = v.remove(0)
     assert(removed == 0)
     assert(v.length == 1)
-    assert(v(0) == 1)
+    assert(v.head == 1)
   }
 
   test("remove all elements one by one") {
@@ -332,7 +332,7 @@ class NativeVectorTest extends AnyFunSuite {
     // BUG #1
     val v = NativeVector[Int](16)
     intercept[IndexOutOfBoundsException] {
-      v(0) // length == 0, no valid indices
+      v.head // length == 0, no valid indices
     }
   }
 
@@ -354,7 +354,7 @@ class NativeVectorTest extends AnyFunSuite {
     val v = filledIntVector(3)
     v.clear()
     intercept[IndexOutOfBoundsException] {
-      v(0)
+      v.head
     }
   }
 
@@ -407,7 +407,7 @@ class NativeVectorTest extends AnyFunSuite {
     v.clear()
     v.addOne(99)
     assert(v.length == 1)
-    assert(v(0) == 99)
+    assert(v.head == 99)
   }
 
   test("clear then insert works") {
@@ -417,7 +417,7 @@ class NativeVectorTest extends AnyFunSuite {
     v.insert(0, 10)
     v.insert(1, 20)
     assert(v.length == 2)
-    assert(v(0) == 10)
+    assert(v.head == 10)
     assert(v(1) == 20)
   }
 
@@ -534,12 +534,12 @@ class NativeVectorTest extends AnyFunSuite {
     // Remove first 80
     (0 until 80).foreach(_ => v.remove(0))
     assert(v.length == 20)
-    assert(v(0) == 80)
+    assert(v.head == 80)
     assert(v(19) == 99)
     // Add more past current capacity
     (0 until 50).foreach(v.addOne)
     assert(v.length == 70)
-    assert(v(0) == 80)
+    assert(v.head == 80)
     assert(v(69) == 149)
   }
 
@@ -575,7 +575,7 @@ class NativeVectorTest extends AnyFunSuite {
     val v = NativeVector[Double](16)
     v.addOne(3.14)
     v.addOne(2.71)
-    assert(v(0) == 3.14)
+    assert(v.head == 3.14)
     assert(v(1) == 2.71)
     assert(v.length == 2)
   }
@@ -585,7 +585,7 @@ class NativeVectorTest extends AnyFunSuite {
     val v = filledDoubleVector(3)
     v.insert(0, 99.9)
     assert(v.length == 4)
-    assert(v(0) == 99.9)
+    assert(v.head == 99.9)
     assert(v(1) == 0.0)
     assert(v(2) == 1.0)
     assert(v(3) == 2.0)
@@ -619,7 +619,7 @@ class NativeVectorTest extends AnyFunSuite {
   test("zero initial size addOne works") {
     val v = NativeVector[Int](0)
     v.addOne(42)
-    assert(v(0) == 42)
+    assert(v.head == 42)
     assert(v.length == 1)
   }
 
@@ -656,7 +656,7 @@ class NativeVectorTest extends AnyFunSuite {
     // If insert works: [0, 1, 2, 3, 4]
     // If insert overwrites: [0, 2, 3, garbage, 4]
     assert(v.length == 5)
-    assert(v(0) == 0)
+    assert(v.head == 0)
     assert(v(1) == 1)
     assert(v(2) == 2)
     assert(v(3) == 3)
@@ -679,7 +679,7 @@ class NativeVectorTest extends AnyFunSuite {
     v.remove(2)           // [0, 1, 3, 4]
     v.insert(2, 99)       // expected: [0, 1, 99, 3, 4]
     assert(v.length == 5)
-    assert(v(0) == 0)
+    assert(v.head == 0)
     assert(v(1) == 1)
     assert(v(2) == 99)
     assert(v(3) == 3)
