@@ -19,10 +19,11 @@ class NativeVector[A: Layout] private(private[collections] var storage: MemorySe
   override def insert(idx: Int, elem: A): Unit = {
     checkWithinBounds(idx, idx)
     ensureSize(currentSize + 1)
-    val srcOffset = idx * Layout[A].byteSize
-    val destOffset = (idx + 1) * Layout[A].byteSize
-    val bytesToCopy = (currentSize - idx) * Layout[A].byteSize
-    MemorySegment.copy(this.storage, srcOffset, this.storage, destOffset, bytesToCopy)
+    var i = currentSize
+    while (i > idx) {
+      Layout[A].write(i, Layout[A].read(i - 1)(using storage))(using storage)
+      i -= 1
+    }
     currentSize += 1
     this(idx) = elem
   }
@@ -62,6 +63,8 @@ class NativeVector[A: Layout] private(private[collections] var storage: MemorySe
   }
 
   override def length: Int = currentSize
+
+  override protected[this] def className: String = "NativeVector"
 
   override def iterator: Iterator[A] = new Iterator[A] {
 

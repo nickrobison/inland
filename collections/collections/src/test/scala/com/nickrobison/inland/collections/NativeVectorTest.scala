@@ -94,7 +94,7 @@ class NativeVectorTest extends AnyFunSuite {
     assert(v(v.length - 1) == 99)
   }
 
-  // ── 3. insert (KNOWN BUG: insert does not shift right) ───────────
+  // ── 3. insert ────────────────────────────────────────────────────
 
   test("insert at position 0 on empty vector") {
     val v = NativeVector[Int](16)
@@ -113,10 +113,6 @@ class NativeVectorTest extends AnyFunSuite {
   }
 
   test("insert at beginning shifts existing elements right") {
-    // BUG #2: insert overwrites without shifting right
-    // Expected: [99, 1, 2, 3]
-    // Actual:   [99, 2, 3, garbage]
-//    val v = ArrayBuffer[Int]()
     val v = NativeVector[Int](16)
     v.addOne(1)
     v.addOne(2)
@@ -130,10 +126,6 @@ class NativeVectorTest extends AnyFunSuite {
   }
 
   test("insert in middle shifts tail elements right") {
-    // BUG #2
-    // Vector: [0, 1, 2, 3, 4]
-    // Insert 99 at idx=2
-    // Expected: [0, 1, 99, 2, 3, 4]
     val v = filledIntVector(5)
     v.insert(2, 99)
     assert(v.length == 6)
@@ -178,7 +170,6 @@ class NativeVectorTest extends AnyFunSuite {
   }
 
   test("multiple inserts in sequence preserve total order") {
-    // BUG #2: multiple inserts will compound the overwrite problem
     val v = NativeVector[Int](16)
     v.insert(0, 2)
     v.insert(0, 1)
@@ -190,7 +181,6 @@ class NativeVectorTest extends AnyFunSuite {
   }
 
   test("insert interleaved with addOne preserves all elements") {
-    // BUG #2
     val v = NativeVector[Int](16)
     v.addOne(10)
     v.addOne(30)
@@ -204,7 +194,6 @@ class NativeVectorTest extends AnyFunSuite {
   // ── 4. prepend ──────────────────────────────────────────────────
 
   test("prepend inserts at front") {
-    // BUG #2 (via insert)
     val v = filledIntVector(3)
     v.prepend(99)
     assert(v.length == 4)
@@ -215,7 +204,6 @@ class NativeVectorTest extends AnyFunSuite {
   }
 
   test("multiple prepends reverse-prefix") {
-    // BUG #2
     val v = NativeVector[Int](16)
     v.prepend(3)
     v.prepend(2)
@@ -254,7 +242,6 @@ class NativeVectorTest extends AnyFunSuite {
   }
 
   test("remove from end returns last element") {
-    // BUG #3: srcOffset may be out-of-bounds for last element
     val v = filledIntVector(5)
     val removed = v.remove(4)
     assert(removed == 4)
@@ -266,7 +253,6 @@ class NativeVectorTest extends AnyFunSuite {
   }
 
   test("remove single element from size-1 vector") {
-    // BUG #3: srcOffset = 1*byteSize = byteSize, segment boundary
     val v = filledIntVector(1)
     val removed = v.remove(0)
     assert(removed == 0)
@@ -328,12 +314,9 @@ class NativeVectorTest extends AnyFunSuite {
   }
 
   test("apply at index == length on empty vector throws") {
-    // NOTE: head on empty collection throws NoSuchElementException,
-    // not IndexOutOfBoundsException. This test documents a pre-existing
-    // expectation discrepancy.
     val v = NativeVector[Int](16)
     intercept[IndexOutOfBoundsException] {
-      v.head
+      v(0)
     }
   }
 
@@ -355,7 +338,7 @@ class NativeVectorTest extends AnyFunSuite {
     val v = filledIntVector(3)
     v.clear()
     intercept[IndexOutOfBoundsException] {
-      v.head
+      v(0)
     }
   }
 
@@ -412,7 +395,6 @@ class NativeVectorTest extends AnyFunSuite {
   }
 
   test("clear then insert works") {
-    // BUG #2
     val v = filledIntVector(5)
     v.clear()
     v.insert(0, 10)
@@ -484,7 +466,6 @@ class NativeVectorTest extends AnyFunSuite {
   }
 
   test("index equal to length always throws for read") {
-    // BUG #1
     for (len <- Seq(0, 1, 5, 10)) {
       val v = filledIntVector(len)
       intercept[IndexOutOfBoundsException](v(len), s"read at length=$len should throw")
@@ -538,7 +519,7 @@ class NativeVectorTest extends AnyFunSuite {
     (0 until 50).foreach(v.addOne)
     assert(v.length == 70)
     assert(v.head == 80)
-    assert(v(69) == 149)
+    assert(v(69) == 49)
   }
 
   test("addOne exactly fills initial capacity") {
@@ -579,7 +560,6 @@ class NativeVectorTest extends AnyFunSuite {
   }
 
   test("Double insert at beginning shifts existing elements") {
-    // BUG #2
     val v = filledDoubleVector(3)
     v.insert(0, 99.9)
     assert(v.length == 4)
@@ -597,7 +577,6 @@ class NativeVectorTest extends AnyFunSuite {
   }
 
   test("Double remove single element from size-1") {
-    // BUG #3: Double is 8 bytes, makes boundary condition more likely
     val v = filledDoubleVector(1)
     val removed = v.remove(0)
     assert(removed == 0.0)
@@ -605,7 +584,6 @@ class NativeVectorTest extends AnyFunSuite {
   }
 
   test("Double apply at index == length throws") {
-    // BUG #1
     val v = filledDoubleVector(3)
     intercept[IndexOutOfBoundsException] {
       v(3)
@@ -638,18 +616,14 @@ class NativeVectorTest extends AnyFunSuite {
   // ── 14. Integration ─────────────────────────────────────────────
 
   test("mixed add, remove, insert sequence") {
-    // BUG #2
     val v = NativeVector[Int](8)
 
     v.addOne(1)
     v.addOne(2)
     v.addOne(3)           // [1, 2, 3]
-    v.insert(0, 0)        // expected: [0, 1, 2, 3]
-    v.remove(4)           // no-op since length is now... depends on insert
-    v.addOne(4)           // depends
+    v.insert(0, 0)        // [0, 1, 2, 3]
+    v.addOne(4)           // [0, 1, 2, 3, 4]
 
-    // If insert works: [0, 1, 2, 3, 4]
-    // If insert overwrites: [0, 2, 3, garbage, 4]
     assert(v.length == 5)
     assert(v.head == 0)
     assert(v(1) == 1)
@@ -669,7 +643,6 @@ class NativeVectorTest extends AnyFunSuite {
   }
 
   test("remove from middle then insert at same position") {
-    // BUG #2
     val v = filledIntVector(5)
     v.remove(2)           // [0, 1, 3, 4]
     v.insert(2, 99)       // expected: [0, 1, 99, 3, 4]
