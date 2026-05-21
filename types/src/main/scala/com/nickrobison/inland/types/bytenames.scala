@@ -20,31 +20,31 @@ private inline val BINARY_TIB = BINARY_GIB * 1024L
  */
 extension (value: Long)
   /** Create Bytes from a raw byte count (identity) */
-  def bytes: Bytes = Bytes.applyUnsafe(value)
+  def bytes: Bytes = checkedBytes(value)
 
   /** Create Bytes from kilobytes (decimal, 1000) */
-  def kb: Bytes = Bytes.applyUnsafe(value * DECIMAL_KB)
+  def kb: Bytes = checkedBytes(value * DECIMAL_KB)
 
   /** Create Bytes from megabytes (decimal, 1000²) */
-  def mb: Bytes = Bytes.applyUnsafe(value * DECIMAL_MB)
+  def mb: Bytes = checkedBytes(value * DECIMAL_MB)
 
   /** Create Bytes from gigabytes (decimal, 1000³) */
-  def gb: Bytes = Bytes.applyUnsafe(value * DECIMAL_GB)
+  def gb: Bytes = checkedBytes(value * DECIMAL_GB)
 
   /** Create Bytes from terabytes (decimal, 1000⁴) */
-  def tb: Bytes = Bytes.applyUnsafe(value * DECIMAL_TB)
+  def tb: Bytes = checkedBytes(value * DECIMAL_TB)
 
   /** Create Bytes from kibibytes (binary, 1024) */
-  def kib: Bytes = Bytes.applyUnsafe(value * BINARY_KIB)
+  def kib: Bytes = checkedBytes(value * BINARY_KIB)
 
   /** Create Bytes from mebibytes (binary, 1024²) */
-  def mib: Bytes = Bytes.applyUnsafe(value * BINARY_MIB)
+  def mib: Bytes = checkedBytes(value * BINARY_MIB)
 
   /** Create Bytes from gibibytes (binary, 1024³) */
-  def gib: Bytes = Bytes.applyUnsafe(value * BINARY_GIB)
+  def gib: Bytes = checkedBytes(value * BINARY_GIB)
 
   /** Create Bytes from tebibytes (binary, 1024⁴) */
-  def tib: Bytes = Bytes.applyUnsafe(value * BINARY_TIB)
+  def tib: Bytes = checkedBytes(value * BINARY_TIB)
 
 /**
  * Extensions on Double for creating Bytes instances with various units
@@ -52,31 +52,31 @@ extension (value: Long)
  */
 extension (value: Double)
   /** Create Bytes from a raw double byte count (truncated) */
-  def bytes: Bytes = Bytes.applyUnsafe(value.toLong)
+  def bytes: Bytes = checkedBytes(value.toLong)
 
   /** Create Bytes from fractional kilobytes (decimal, truncated) */
-  def kb: Bytes = Bytes.applyUnsafe((value * DECIMAL_KB).toLong)
+  def kb: Bytes = checkedBytes((value * DECIMAL_KB).toLong)
 
   /** Create Bytes from fractional megabytes (decimal, truncated) */
-  def mb: Bytes = Bytes.applyUnsafe((value * DECIMAL_MB).toLong)
+  def mb: Bytes = checkedBytes((value * DECIMAL_MB).toLong)
 
   /** Create Bytes from fractional gigabytes (decimal, truncated) */
-  def gb: Bytes = Bytes.applyUnsafe((value * DECIMAL_GB).toLong)
+  def gb: Bytes = checkedBytes((value * DECIMAL_GB).toLong)
 
   /** Create Bytes from fractional terabytes (decimal, truncated) */
-  def tb: Bytes = Bytes.applyUnsafe((value * DECIMAL_TB).toLong)
+  def tb: Bytes = checkedBytes((value * DECIMAL_TB).toLong)
 
   /** Create Bytes from fractional kibibytes (binary, truncated) */
-  def kib: Bytes = Bytes.applyUnsafe((value * BINARY_KIB).toLong)
+  def kib: Bytes = checkedBytes((value * BINARY_KIB).toLong)
 
-  /** Create Bytes from fractional mebibytes (binary, truncated) */
-  def mib: Bytes = Bytes.applyUnsafe((value * BINARY_MIB).toLong)
+  /** Create Bytes from fractional mebibytes (binary, 1024²) */
+  def mib: Bytes = checkedBytes((value * BINARY_MIB).toLong)
 
-  /** Create Bytes from fractional gibibytes (binary, truncated) */
-  def gib: Bytes = Bytes.applyUnsafe((value * BINARY_GIB).toLong)
+  /** Create Bytes from fractional gibibytes (binary, 1024³) */
+  def gib: Bytes = checkedBytes((value * BINARY_GIB).toLong)
 
-  /** Create Bytes from fractional tebibytes (binary, truncated) */
-  def tib: Bytes = Bytes.applyUnsafe((value * BINARY_TIB).toLong)
+  /** Create Bytes from fractional tebibytes (binary, 1024⁴) */
+  def tib: Bytes = checkedBytes((value * BINARY_TIB).toLong)
 
 /**
  * Extensions on Bytes for converting back to various units as Double

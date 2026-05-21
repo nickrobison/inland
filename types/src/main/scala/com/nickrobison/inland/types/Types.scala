@@ -15,9 +15,14 @@ object Offset extends RefinedType[Long, Positive]
 type Bytes = Bytes.T
 object Bytes extends RefinedType[Long, Positive]
 
+private[types] def checkedBytes(value: Long): Bytes =
+  Bytes.option(value).getOrElse(
+    throw IllegalArgumentException(s"Bytes value must be positive, got $value")
+  )
+
 extension (x: Bytes) {
   def * (y: Count): Bytes = {
-    Bytes.applyUnsafe(x.value * y.value)
+    checkedBytes(x.value * y.value)
   }
 }
 
@@ -26,7 +31,7 @@ object Count extends RefinedType[Int, Positive]
 
 extension (x: Count) {
   def * (y: Bytes): Bytes = {
-    Bytes.applyUnsafe(x.value * y.value)
+    checkedBytes(x.value * y.value)
   }
 }
 
