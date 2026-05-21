@@ -6,7 +6,10 @@ import org.scalacheck.{Arbitrary, Prop}
 import org.scalacheck.Prop.forAll
 import org.typelevel.discipline.Laws
 
-class NativeVectorLaws[A](using layout: Layout[A], allocator: NativeAllocator, arbA: Arbitrary[A]) extends Laws {
+import java.util.NoSuchElementException
+
+class NativeVectorLaws[A](using layout: Layout[A], allocator: NativeAllocator, arbA: Arbitrary[A])
+    extends Laws {
 
   def nativeVectorLaws: RuleSet = new DefaultRuleSet(
     name = "NativeVector",
@@ -22,6 +25,11 @@ class NativeVectorLaws[A](using layout: Layout[A], allocator: NativeAllocator, a
     "remove returns correct element" -> removeReturnsCorrectElement(),
     "insert shifts elements right" -> insertShiftsRight(),
     "insert preserves all elements" -> insertPreservesAllElements(),
+    "prepend inserts at front" -> prependInsertsAtFront(),
+    "insertAll preserves all elements" -> insertAllPreservesAllElements(),
+    "remove batch preserves elements" -> removeBatchPreservesElements(),
+    "patchInPlace correctness" -> patchInPlaceCorrectness(),
+    "iterator exhaustion throws NoSuchElementException" -> iteratorExhaustionThrows()
   )
 
   // ── laws ──────────────────────────────────────────────────────────
@@ -149,8 +157,93 @@ class NativeVectorLaws[A](using layout: Layout[A], allocator: NativeAllocator, a
       }
     }
   }
+  private def prependInsertsAtFront(): Prop = {
+    forAll { (before: Seq[A], elem: A) =>
+      if (before.nonEmpty && before.length <= 64) {
+        val vec = NativeVector[A](before.length)
+        before.foreach(vec.addOne)
+        vec.prepend(elem)
+        val expected = elem +: before
+        val actual = (0 until vec.length).map(vec.apply)
+        actual == expected
+      } else {
+        true
+      }
+    }
+  }
+
+  private def insertAllPreservesAllElements(): Prop = {
+    forAll { (before: Seq[A], elems: Seq[A]) =>
+      if (before.nonEmpty && elems.nonEmpty && before.length + elems.length <= 64) {
+        val vec = NativeVector[A](before.length)
+        before.foreach(vec.addOne)
+        val idx = before.length / 2
+        vec.insertAll(idx, elems)
+        val expected = before.take(idx) ++ elems ++ before.drop(idx)
+        val actual = (0 until vec.length).map(vec.apply)
+        actual == expected
+      } else {
+        true
+      }
+    }
+  }
+
+  private def removeBatchPreservesElements(): Prop = {
+    forAll { (before: Seq[A]) =>
+      if (before.length >= 2 && before.length <= 64) {
+        val removeIdx = before.length / 3
+        val removeCount = math.min(2, before.length - removeIdx)
+        val vec = NativeVector[A](before.length)
+        before.foreach(vec.addOne)
+        vec.remove(removeIdx, removeCount)
+        val expected = before.take(removeIdx) ++ before.drop(removeIdx + removeCount)
+        val actual = (0 until vec.length).map(vec.apply)
+        actual == expected
+      } else {
+        true
+      }
+    }
+  }
+
+  private def patchInPlaceCorrectness(): Prop = {
+    forAll { (before: Seq[A], patch: Seq[A]) =>
+      if (before.nonEmpty && before.length <= 50) {
+        val patchList = patch.take(10).toList
+        val from = before.length / 2
+        val replaced = math.min(2, before.length - from)
+        val vec = NativeVector[A](before.length)
+        before.foreach(vec.addOne)
+        vec.patchInPlace(from, patchList, replaced)
+        val expected = before.take(from) ++ patchList ++ before.drop(from + replaced)
+        val actual = (0 until vec.length).map(vec.apply)
+        actual == expected
+      } else {
+        true
+      }
+    }
+  }
+
+  private def iteratorExhaustionThrows(): Prop = {
+    forAll { (values: Seq[A]) =>
+      if (values.nonEmpty && values.length <= 16) {
+        val vec = NativeVector[A](values.length)
+        values.foreach(vec.addOne)
+        val it = vec.iterator
+        values.foreach(_ => it.next())
+        try {
+          it.next()
+          false
+        } catch {
+          case _: NoSuchElementException => true
+        }
+      } else {
+        true
+      }
+    }
+  }
 }
 
 object NativeVectorLaws {
-  def apply[A](using Layout[A], NativeAllocator, Arbitrary[A]): NativeVectorLaws[A] = new NativeVectorLaws[A]
+  def apply[A](using Layout[A], NativeAllocator, Arbitrary[A]): NativeVectorLaws[A] =
+    new NativeVectorLaws[A]
 }

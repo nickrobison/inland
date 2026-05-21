@@ -2,9 +2,11 @@ package com.nickrobison.inland.collections
 
 import com.nickrobison.inland.allocator.HeapAllocator
 import com.nickrobison.inland.allocator.instances.given
+import com.nickrobison.inland.types.Layout
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
+import java.lang.foreign.ValueLayout
 import scala.collection.mutable.ArrayBuffer
 
 class NativeVectorTest extends AnyFunSuite, ScalaCheckPropertyChecks {
@@ -12,243 +14,99 @@ class NativeVectorTest extends AnyFunSuite, ScalaCheckPropertyChecks {
   // ── Helpers ──────────────────────────────────────────────────────
 
   private given HeapAllocator = HeapAllocator()
+  private val SZ = 4 // Int byteSize
+  private val DSZ = 8 // Double byteSize
 
-  /** Build a vector with known contents [0, 1, ..., n-1]. */
   private def filledIntVector(n: Int)(using HeapAllocator): NativeVector[Int] = {
     val v = NativeVector[Int](n)
     (0 until n).foreach(v.addOne)
     v
   }
 
-  private def filledDoubleVector(n: Int)(using HeapAllocator): NativeVector[Double] = {
-    val v = NativeVector[Double](n)
-    (0 until n).map(_.toDouble).foreach(v.addOne)
-    v
+  private def expectedAllocSize[A: Layout](count: Int): Long = {
+    val raw = Layout[A].byteSize * count
+    math.max(8, raw)
   }
 
-  
-
-  // ── 1. Construction and Initial State ────────────────────────────
-
-  test("new vector length is 0") {
-    val v = NativeVector[Int](16)
-    assert(v.length == 0)
+  private def assertCapacityAtLeast[A](v: NativeVector[A], neededBytes: Long): Unit = {
+    val cap = v.storage.byteSize()
+    assert(
+      cap >= neededBytes,
+      s"segment capacity $cap < needed $neededBytes for ${v.length} elements")
   }
 
-  test("new vector with various initial sizes") {
-    for (size <- Seq(1, 2, 8, 16, 64, 128)) {
-      val v = NativeVector[Int](size)
-      assert(v.length == 0, s"initial size=$size")
-    }
-  }
+  // ═══════════════════════════════════════════════════════════════════
+  // 1 — Edge Cases: Zero Initial Size
+  // ═══════════════════════════════════════════════════════════════════
 
-  test("new vector with zero initial size") {
-    // Should still construct and have length 0
+  test("zero init: addOne works") {
     val v = NativeVector[Int](0)
-    assert(v.length == 0)
-  }
-
-  // ── 2. addOne ────────────────────────────────────────────────────
-
-  test("addOne then apply returns same element") {
-    val v = NativeVector[Int](16)
     v.addOne(42)
     assert(v.head == 42)
-  }
-
-  test("addOne increases length by 1") {
-    val v = NativeVector[Int](16)
-    val before = v.length
-    v.addOne(7)
-    assert(v.length == before + 1)
-  }
-
-  test("multiple addOne preserves insertion order") {
-    val v = NativeVector[Int](16)
-    val elems = List(10, 20, 30, 40, 50)
-    elems.foreach(v.addOne)
-    assert(v.length == elems.length)
-    assert(v.head == 10)
-    assert(v(1) == 20)
-    assert(v(2) == 30)
-    assert(v(3) == 40)
-    assert(v(4) == 50)
-  }
-
-  test("addOne past initial capacity grows and preserves data") {
-    val v = NativeVector[Int](2)           // tiny capacity
-    val n = 100
-    (0 until n).foreach(v.addOne)
-    assert(v.length == n)
-    for (i <- 0 until n) {
-      assert(v(i) == i, s"mismatch at index $i")
-    }
-  }
-
-  test("addOne after many removes still works") {
-    val v = NativeVector[Int](16)
-    (0 until 10).foreach(v.addOne)
-    (0 until 5).foreach(_ => v.remove(0))
-    v.addOne(99)
-    assert(v(v.length - 1) == 99)
-  }
-
-  // ── 3. insert ────────────────────────────────────────────────────
-
-  test("insert at position 0 on empty vector") {
-    val v = NativeVector[Int](16)
-    v.insert(0, 99)
     assert(v.length == 1)
-    assert(v.head == 99)
   }
 
-  test("insert at end equals addOne") {
-    val v = NativeVector[Int](16)
-    v.insert(0, 10)
-    v.insert(1, 20)
-    assert(v.length == 2)
-    assert(v.head == 10)
-    assert(v(1) == 20)
+  test("zero init: multiple addOne works") {
+    val v = NativeVector[Int](0)
+    (0 until 10).foreach(v.addOne)
+    assert(v.length == 10)
+    (0 until 10).foreach(i => assert(v(i) == i))
   }
 
-  test("insert at beginning shifts existing elements right") {
-    val v = NativeVector[Int](16)
-    v.addOne(1)
+  test("zero init: Double vector addOne works") {
+    val v = NativeVector[Double](0)
+    (0 until 5).map(_.toDouble).foreach(v.addOne)
+    assert(v.length == 5)
+    (0 until 5).foreach(i => assert(v(i) == i.toDouble))
+  }
+
+  test("zero init: initial segment has at least 8 bytes") {
+    val v = NativeVector[Int](0)
+    assert(v.storage.byteSize() >= 8)
+  }
+
+  test("zero init: first addOne does NOT trigger unnecessary resize") {
+    val v = NativeVector[Int](0)
+    val capBefore = v.storage.byteSize()
+    v.addOne(42)
+    assert(
+      v.storage.byteSize() == capBefore,
+      s"first addOne changed capacity $capBefore → ${v.storage.byteSize()}")
+  }
+
+  test("zero init: sequential addOne fills initial segment then resizes") {
+    val v = NativeVector[Int](0)
+    val initCapacity = v.storage.byteSize() / Layout[Int].byteSize
+
+    for (_ <- 0L until initCapacity) v.addOne(1)
+    assert(v.length == initCapacity)
+    val capAfterFill = v.storage.byteSize()
+
     v.addOne(2)
-    v.addOne(3)
-    v.insert(0, 99)
-    assert(v.length == 4)
-    assert(v.head == 99, "head should be new element")
-    assert(v(1) == 1, "existing element at idx=0 should shift to idx=1")
-    assert(v(2) == 2, "existing element at idx=1 should shift to idx=2")
-    assert(v(3) == 3, "existing element at idx=2 should shift to idx=3")
+    assert(v.storage.byteSize() > capAfterFill, "should resize when exceeding zero-init capacity")
   }
 
-  test("insert in middle shifts tail elements right") {
-    val v = filledIntVector(5)
-    v.insert(2, 99)
-    assert(v.length == 6)
-    assert(v.head == 0)
-    assert(v(1) == 1)
-    assert(v(2) == 99)
-    assert(v(3) == 2)
-    assert(v(4) == 3)
-    assert(v(5) == 4)
+  test("zero init: Double first addOne does not trigger unnecessary resize") {
+    val v = NativeVector[Double](0)
+    val capBefore = v.storage.byteSize()
+    v.addOne(3.14)
+    assert(v.storage.byteSize() == capBefore, "Double zero-init first addOne should not resize")
   }
 
-  test("insert at last position works like append") {
-    val v = filledIntVector(3)
-    v.insert(3, 99)
-    assert(v.length == 4)
-    assert(v.head == 0)
-    assert(v(1) == 1)
-    assert(v(2) == 2)
-    assert(v(3) == 99)
+  test("zero init: many elements after zero init read back correctly") {
+    val v = NativeVector[Double](0)
+    (0 until 20).map(_.toDouble).foreach(v.addOne)
+    assert(v.length == 20)
+    for (i <- 0 until 20) assert(v(i) == i.toDouble, s"Double mismatch at $i")
   }
 
-  test("insert at end (idx == length) is valid") {
-    val v = NativeVector[Int](4)
-    v.insert(0, 10)
-    v.insert(1, 20) // append after growth
-    assert(v.head == 10)
-    assert(v(1) == 20)
-  }
+  // ═══════════════════════════════════════════════════════════════════
+  // 2 — Edge Cases: Empty / Single-Element
+  // ═══════════════════════════════════════════════════════════════════
 
-  test("insert past end throws IndexOutOfBoundsException") {
-    val v = filledIntVector(3)
-    intercept[IndexOutOfBoundsException] {
-      v.insert(5, 99)
-    }
-  }
-
-  test("insert at negative index throws IndexOutOfBoundsException") {
-    val v = filledIntVector(3)
-    intercept[IndexOutOfBoundsException] {
-      v.insert(-1, 99)
-    }
-  }
-
-  test("multiple inserts in sequence preserve total order") {
-    val v = NativeVector[Int](16)
-    v.insert(0, 2)
-    v.insert(0, 1)
-    v.insert(0, 0)
-    assert(v.length == 3)
-    assert(v.head == 0)
-    assert(v(1) == 1)
-    assert(v(2) == 2)
-  }
-
-  test("insert interleaved with addOne preserves all elements") {
-    val v = NativeVector[Int](16)
-    v.addOne(10)
-    v.addOne(30)
-    v.insert(1, 20)
-    assert(v.length == 3)
-    assert(v.head == 10)
-    assert(v(1) == 20)
-    assert(v(2) == 30)
-  }
-
-  // ── 4. prepend ──────────────────────────────────────────────────
-
-  test("prepend inserts at front") {
-    val v = filledIntVector(3)
-    v.prepend(99)
-    assert(v.length == 4)
-    assert(v.head == 99)
-    assert(v(1) == 0)
-    assert(v(2) == 1)
-    assert(v(3) == 2)
-  }
-
-  test("multiple prepends reverse-prefix") {
-    val v = NativeVector[Int](16)
-    v.prepend(3)
-    v.prepend(2)
-    v.prepend(1)
-    v.prepend(0)
-    assert(v.length == 4)
-    assert(v.head == 0)
-    assert(v(1) == 1)
-    assert(v(2) == 2)
-    assert(v(3) == 3)
-  }
-
-  // ── 5. remove ──────────────────────────────────────────────────
-
-  test("remove from beginning returns first element and shifts") {
-    // Check shift right-to-left works
-    val v = filledIntVector(5)
-    val removed = v.remove(0)
-    assert(removed == 0)
-    assert(v.length == 4)
-    assert(v.head == 1)
-    assert(v(1) == 2)
-    assert(v(2) == 3)
-    assert(v(3) == 4)
-  }
-
-  test("remove from middle returns correct element and shifts") {
-    val v = filledIntVector(5)
-    val removed = v.remove(2)
-    assert(removed == 2)
-    assert(v.length == 4)
-    assert(v.head == 0)
-    assert(v(1) == 1)
-    assert(v(2) == 3)
-    assert(v(3) == 4)
-  }
-
-  test("remove from end returns last element") {
-    val v = filledIntVector(5)
-    val removed = v.remove(4)
-    assert(removed == 4)
-    assert(v.length == 4)
-    assert(v.head == 0)
-    assert(v(1) == 1)
-    assert(v(2) == 2)
-    assert(v(3) == 3)
+  test("new vector with zero initial size has length 0") {
+    val v = NativeVector[Int](0)
+    assert(v.length == 0)
   }
 
   test("remove single element from size-1 vector") {
@@ -258,131 +116,576 @@ class NativeVectorTest extends AnyFunSuite, ScalaCheckPropertyChecks {
     assert(v.length == 0)
   }
 
-  test("remove from size-2 first element") {
-    val v = filledIntVector(2)
-    val removed = v.remove(0)
-    assert(removed == 0)
-    assert(v.length == 1)
-    assert(v.head == 1)
+  test("clear on empty vector leaves length at 0") {
+    val v = NativeVector[Int](16)
+    v.clear()
+    assert(v.length == 0)
+  }
+
+  test("iterator over empty vector yields nothing") {
+    val v = NativeVector[Int](16)
+    assert(v.iterator.toList.isEmpty)
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // 3 — Error Handling: Negative Index
+  // ═══════════════════════════════════════════════════════════════════
+
+  test("negative index always throws for read regardless of length") {
+    for (len <- Seq(0, 1, 5, 100)) {
+      val v = filledIntVector(len)
+      intercept[IndexOutOfBoundsException](v(-1))
+    }
+  }
+
+  test("insert at negative index throws") {
+    val v = filledIntVector(3)
+    intercept[IndexOutOfBoundsException](v.insert(-1, 99))
+  }
+
+  test("remove at negative index throws") {
+    val v = filledIntVector(3)
+    intercept[IndexOutOfBoundsException](v.remove(-1))
+  }
+
+  test("apply at negative index throws") {
+    val v = filledIntVector(3)
+    intercept[IndexOutOfBoundsException](v(-1))
+  }
+
+  test("update at negative index throws") {
+    val v = filledIntVector(3)
+    intercept[IndexOutOfBoundsException](v.update(-1, 99))
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // 4 — Error Handling: Bounds (idx == length, idx > length)
+  // ═══════════════════════════════════════════════════════════════════
+
+  test("apply at index == length throws") {
+    for (len <- Seq(0, 1, 5, 10)) {
+      val v = filledIntVector(len)
+      intercept[IndexOutOfBoundsException](v(len), s"read at length=$len")
+    }
+  }
+
+  test("update at index == length throws") {
+    for (len <- Seq(0, 1, 5, 10)) {
+      val v = filledIntVector(len)
+      intercept[IndexOutOfBoundsException](v.update(len, 99), s"update at length=$len")
+    }
+  }
+
+  test("insert at idx == length is valid for all lengths") {
+    for (len <- Seq(0, 1, 5)) {
+      val v = filledIntVector(len)
+      v.insert(len, 99)
+      assert(v.length == len + 1)
+      assert(v(len) == 99)
+    }
+  }
+
+  test("insert at idx > length throws") {
+    for (len <- Seq(0, 1, 5)) {
+      val v = filledIntVector(len)
+      intercept[IndexOutOfBoundsException](v.insert(len + 1, 99))
+    }
+  }
+
+  test("remove on empty vector throws") {
+    val v = NativeVector[Int](16)
+    intercept[IndexOutOfBoundsException](v.remove(0))
+  }
+
+  test("remove past end throws") {
+    val v = filledIntVector(3)
+    intercept[IndexOutOfBoundsException](v.remove(5))
+  }
+
+  test("apply at index past length throws") {
+    val v = filledIntVector(3)
+    intercept[IndexOutOfBoundsException](v(10))
+  }
+
+  test("update at index past length throws") {
+    val v = filledIntVector(3)
+    intercept[IndexOutOfBoundsException](v.update(10, 99))
+  }
+
+  test("apply after clear throws") {
+    val v = filledIntVector(3)
+    v.clear()
+    intercept[IndexOutOfBoundsException](v(0))
+  }
+
+  test("raw bytes beyond currentSize are not read by apply") {
+    val v = NativeVector[Int](8)
+    (0 until 3).foreach(v.addOne)
+    intercept[IndexOutOfBoundsException](v(3))
+    intercept[IndexOutOfBoundsException](v(4))
+    intercept[IndexOutOfBoundsException](v(7))
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // 5 — Iterator Contract
+  // ═══════════════════════════════════════════════════════════════════
+
+  test("iterator yields all elements in order") {
+    val v = filledIntVector(5)
+    assert(v.iterator.toList == List(0, 1, 2, 3, 4))
+  }
+
+  test("iterator hasNext after exhaustion returns false") {
+    val v = filledIntVector(3)
+    val it = v.iterator
+    it.next(); it.next(); it.next()
+    assert(!it.hasNext)
+  }
+
+  test("multiple iterators on same vector are independent") {
+    val v = filledIntVector(5)
+    val it1 = v.iterator
+    val it2 = v.iterator
+    it1.next()
+    it1.next()
+    assert(it2.next() == 0)
+  }
+
+  test("iterator over large vector (1000 elements)") {
+    val v = NativeVector[Int](16)
+    (0 until 1000).foreach(v.addOne)
+    val elems = v.iterator.toList
+    assert(elems.length == 1000)
+    assert(elems.head == 0)
+    assert(elems.last == 999)
+  }
+
+  test("iterator values exactly match raw segment reads") {
+    val v = NativeVector[Int](8)
+    (0 until 8).foreach(v.addOne)
+    val raw = v.storage
+    var idx = 0
+    for (elem <- v.iterator) {
+      val fromRaw = raw.get(ValueLayout.JAVA_INT, (idx * SZ).toLong)
+      assert(elem == fromRaw, s"iterator $elem != raw $fromRaw at $idx")
+      idx += 1
+    }
+    assert(idx == 8)
+  }
+
+  test("after remove, iterator matches raw segment") {
+    val v = NativeVector[Int](8)
+    (0 until 6).foreach(v.addOne)
+    v.remove(1)
+    v.remove(3)
+    val raw = v.storage
+    val expected = Seq(0, 2, 3, 5)
+    var idx = 0
+    for (elem <- v.iterator) {
+      assert(elem == expected(idx), s"iterator ${elem} != expected ${expected(idx)} at $idx")
+      val fromRaw = raw.get(ValueLayout.JAVA_INT, (idx * SZ).toLong)
+      assert(elem == fromRaw, s"iterator $elem != raw $fromRaw at $idx")
+      idx += 1
+    }
+    assert(idx == 4, s"iterator should yield 4 elements, got $idx")
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // 6 — Raw Memory Verification
+  // ═══════════════════════════════════════════════════════════════════
+
+  test("raw: sequential addOne Int matches direct segment reads") {
+    val v = NativeVector[Int](8)
+    (0 until 8).foreach(v.addOne)
+    val raw = v.storage
+    for (i <- 0 until 8) {
+      val fromVector = v(i)
+      val fromRaw = raw.get(ValueLayout.JAVA_INT, (i * SZ).toLong)
+      assert(fromRaw == fromVector, s"mismatch at $i: raw=$fromRaw vector=$fromVector")
+      assert(fromRaw == i, s"wrong value at $i: expected $i got $fromRaw")
+    }
+  }
+
+  test("raw: sequential addOne Double matches direct segment reads") {
+    val v = NativeVector[Double](8)
+    (0 until 8).map(_.toDouble).foreach(v.addOne)
+    val raw = v.storage
+    for (i <- 0 until 8) {
+      val fromVector = v(i)
+      val fromRaw = raw.get(ValueLayout.JAVA_DOUBLE, (i * DSZ).toLong)
+      assert(fromRaw == fromVector, s"mismatch at $i")
+      assert(fromRaw == i.toDouble, s"wrong value at $i")
+    }
+  }
+
+  test("raw: addOne past capacity still correct after resize") {
+    val v = NativeVector[Int](4)
+    (0 until 20).foreach(v.addOne)
+    val raw = v.storage
+    for (i <- 0 until 20) {
+      val fromVector = v(i)
+      val fromRaw = raw.get(ValueLayout.JAVA_INT, (i * SZ).toLong)
+      assert(fromRaw == fromVector, s"mismatch at $i")
+      assert(fromRaw == i, s"wrong value at $i: expected $i got $fromRaw")
+    }
+  }
+
+  test("raw: insert at front — bytes reflect shift") {
+    val v = NativeVector[Int](8)
+    v.addOne(1); v.addOne(2); v.addOne(3)
+    v.insert(0, 99)
+    val raw = v.storage
+    assert(raw.get(ValueLayout.JAVA_INT, 0L) == 99)
+    assert(raw.get(ValueLayout.JAVA_INT, SZ.toLong) == 1)
+    assert(raw.get(ValueLayout.JAVA_INT, (2L * SZ)) == 2)
+    assert(raw.get(ValueLayout.JAVA_INT, (3L * SZ)) == 3)
+  }
+
+  test("raw: insert in middle — bytes reflect shift") {
+    val v = NativeVector[Int](8)
+    (0 until 5).foreach(v.addOne)
+    v.insert(2, 99)
+    val raw = v.storage
+    assert(raw.get(ValueLayout.JAVA_INT, 0L) == 0)
+    assert(raw.get(ValueLayout.JAVA_INT, SZ.toLong) == 1)
+    assert(raw.get(ValueLayout.JAVA_INT, (2L * SZ)) == 99)
+    assert(raw.get(ValueLayout.JAVA_INT, (3L * SZ)) == 2)
+    assert(raw.get(ValueLayout.JAVA_INT, (4L * SZ)) == 3)
+    assert(raw.get(ValueLayout.JAVA_INT, (5L * SZ)) == 4)
+  }
+
+  test("raw: remove from front — bytes show compaction") {
+    val v = NativeVector[Int](8)
+    (0 until 5).foreach(v.addOne)
+    v.remove(0)
+    val raw = v.storage
+    for (i <- 0 until 4) {
+      val expected = i + 1
+      assert(raw.get(ValueLayout.JAVA_INT, (i * SZ).toLong) == expected, s"element $i")
+    }
+  }
+
+  test("raw: remove from middle — bytes show compaction") {
+    val v = NativeVector[Int](8)
+    (0 until 5).foreach(v.addOne)
+    v.remove(2)
+    val raw = v.storage
+    assert(raw.get(ValueLayout.JAVA_INT, 0L) == 0)
+    assert(raw.get(ValueLayout.JAVA_INT, SZ.toLong) == 1)
+    assert(raw.get(ValueLayout.JAVA_INT, (2L * SZ)) == 3)
+    assert(raw.get(ValueLayout.JAVA_INT, (3L * SZ)) == 4)
+  }
+
+  test("raw: clear leaves segment but length is 0") {
+    val v = NativeVector[Int](8)
+    (0 until 5).foreach(v.addOne)
+    val segBefore = v.storage
+    v.clear()
+    assert(v.length == 0)
+    assert(v.storage.eq(segBefore), "clear should reuse same segment")
+    assert(v.storage.byteSize() == segBefore.byteSize(), "segment size unchanged on clear")
+  }
+
+  test("raw: update changes underlying bytes") {
+    val v = NativeVector[Int](8)
+    (0 until 4).foreach(v.addOne)
+    v.update(1, 99)
+    assert(v.storage.get(ValueLayout.JAVA_INT, SZ.toLong) == 99)
+  }
+
+  test("raw: values survive repeated resize cycles") {
+    val v = NativeVector[Int](2)
+    (0 until 200).foreach(v.addOne)
+    val raw = v.storage
+    for (i <- 0 until 200) {
+      assert(raw.get(ValueLayout.JAVA_INT, (i * SZ).toLong) == i, s"mismatch at $i")
+    }
+  }
+
+  test("raw: Long type direct segment reads") {
+    val longLayout = ValueLayout.JAVA_LONG
+    val v = NativeVector[Long](4)
+    (0L until 10L).foreach(v.addOne)
+    val raw = v.storage
+    for (i <- 0 until 10) {
+      assert(raw.get(longLayout, (i * 8L)) == i, s"Long mismatch at $i")
+    }
+  }
+
+  test("raw: Float type direct segment reads") {
+    val floatLayout = ValueLayout.JAVA_FLOAT
+    val v = NativeVector[Float](4)
+    (0 until 8).map(_.toFloat).foreach(v.addOne)
+    val raw = v.storage
+    for (i <- 0 until 8) {
+      assert(raw.get(floatLayout, (i * 4L)) == i.toFloat, s"Float mismatch at $i")
+    }
+  }
+
+  test("raw: interleaved add/remove/insert matches") {
+    val v = NativeVector[Int](8)
+    v.addOne(10); v.addOne(30)
+    v.insert(1, 20)
+    v.remove(2)
+    v.addOne(40)
+    v.insert(0, 5)
+    val raw = v.storage
+    assert(v.length == 4)
+    assert(raw.get(ValueLayout.JAVA_INT, 0L) == 5)
+    assert(raw.get(ValueLayout.JAVA_INT, SZ.toLong) == 10)
+    assert(raw.get(ValueLayout.JAVA_INT, (2L * SZ)) == 20)
+    assert(raw.get(ValueLayout.JAVA_INT, (3L * SZ)) == 40)
+  }
+
+  test("raw: repeated insert at front followed by reads") {
+    val v = NativeVector[Int](4)
+    v.insert(0, 2); v.insert(0, 1); v.insert(0, 0)
+    val raw = v.storage
+    for (i <- 0 until 3) {
+      assert(raw.get(ValueLayout.JAVA_INT, (i * SZ).toLong) == i, s"front-insert: index $i")
+    }
+  }
+
+  test("raw: remove-all-then-add retains correct layout") {
+    val v = NativeVector[Int](4)
+    (0 until 4).foreach(v.addOne)
+    (0 until 4).foreach(_ => v.remove(0))
+    (0 until 4).foreach(v.addOne)
+    val raw = v.storage
+    for (i <- 0 until 4) {
+      assert(raw.get(ValueLayout.JAVA_INT, (i * SZ).toLong) == i, s"index $i")
+    }
+  }
+
+  test("raw: multiple vectors from same allocator do not interfere") {
+    val v1 = NativeVector[Int](8)
+    val v2 = NativeVector[Int](8)
+    (0 until 8).foreach(i => v1.addOne(i * 10))
+    (0 until 8).foreach(i => v2.addOne(i * 100))
+    for (i <- 0 until 8) {
+      assert(
+        v1.storage.get(ValueLayout.JAVA_INT, (i * SZ).toLong) == i * 10,
+        s"v1 element $i corrupted")
+      assert(
+        v2.storage.get(ValueLayout.JAVA_INT, (i * SZ).toLong) == i * 100,
+        s"v2 element $i corrupted")
+    }
+  }
+
+  test("raw: no stale data after reallocation") {
+    val v = NativeVector[Int](2)
+    val expected = ArrayBuffer.empty[Int]
+    for (i <- 0 until 10) { v.addOne(i); expected += i }
+    for (_ <- 0 until 4) { expected.remove(0); v.remove(0) }
+    for (i <- 10 until 16) { v.addOne(i); expected += i }
+    assert(v.length == expected.length)
+    for (i <- 0 until v.length) {
+      val fromRaw = v.storage.get(ValueLayout.JAVA_INT, (i * SZ).toLong)
+      assert(fromRaw == expected(i), s"index $i: raw=$fromRaw expected=${expected(i)}")
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // 7 — Allocation / Growth Behavior
+  // ═══════════════════════════════════════════════════════════════════
+
+  test("growth: addOne past initial capacity grows and preserves data") {
+    val v = NativeVector[Int](2)
+    (0 until 100).foreach(v.addOne)
+    assert(v.length == 100)
+    for (i <- 0 until 100) assert(v(i) == i, s"mismatch at $i")
+  }
+
+  test("growth: grow after removing many elements") {
+    val v = NativeVector[Int](16)
+    (0 until 100).foreach(v.addOne)
+    (0 until 80).foreach(_ => v.remove(0))
+    assert(v.length == 20)
+    assert(v.head == 80)
+    assert(v(19) == 99)
+    (0 until 50).foreach(v.addOne)
+    assert(v.length == 70)
+    assert(v.head == 80)
+    assert(v(69) == 49)
+  }
+
+  test("growth: addOne exactly fills and one past triggers resize") {
+    val initSize = 4
+    val v = NativeVector[Int](initSize)
+    (0 until initSize).foreach(v.addOne)
+    assert(v.length == initSize)
+    (0 until initSize).foreach(i => assert(v(i) == i))
+    v.addOne(99)
+    assert(v.length == initSize + 1)
+    assert(v(initSize) == 99)
+    (0 until initSize).foreach(i => assert(v(i) == i))
+  }
+
+  test("growth: repeated resize cycles preserve data") {
+    val v = NativeVector[Int](2)
+    (0 until 256).foreach(v.addOne)
+    assert(v.length == 256)
+    (0 until 256).foreach(i => assert(v(i) == i))
+  }
+
+  test("growth: initial segment has expected size") {
+    for (initSize <- Seq(1, 2, 4, 8, 16, 64)) {
+      val v = NativeVector[Int](initSize)
+      assert(
+        v.storage.byteSize() == expectedAllocSize[Int](initSize),
+        s"initSize=$initSize: expected ${expectedAllocSize[Int](initSize)}, got ${v.storage.byteSize()}"
+      )
+    }
+  }
+
+  test("growth: segment never smaller than required for current elements") {
+    val v = NativeVector[Int](4)
+    for (_ <- 0 until 100) {
+      assertCapacityAtLeast(v, v.length.toLong * Layout[Int].byteSize)
+      v.addOne(0)
+    }
+  }
+
+  test("growth: segment grows only when necessary (not on every addOne)") {
+    val v = NativeVector[Int](16)
+    val initialCap = v.storage.byteSize()
+    for (_ <- 0 until 15) {
+      v.addOne(0)
+      assert(v.storage.byteSize() == initialCap, "segment grew before reaching capacity")
+    }
+    v.addOne(0)
+    assert(v.storage.byteSize() == initialCap, "segment grew when count == capacity")
+    v.addOne(0)
+    assert(v.storage.byteSize() > initialCap, "segment should grow past initial capacity")
+  }
+
+  test("growth: segment size follows geometric growth during sequential add") {
+    val v = NativeVector[Int](4)
+    val expectedCaps = Seq(
+      4 -> expectedAllocSize[Int](4),
+      5 -> expectedAllocSize[Int](8),
+      9 -> expectedAllocSize[Int](16),
+      17 -> expectedAllocSize[Int](32),
+      33 -> expectedAllocSize[Int](64),
+      65 -> expectedAllocSize[Int](128)
+    )
+    for ((n, expectedCap) <- expectedCaps) {
+      while (v.length < n) v.addOne(0)
+      assert(
+        v.storage.byteSize() == expectedCap,
+        s"after $n elements: expected $expectedCap, got ${v.storage.byteSize()}")
+    }
+  }
+
+  test("growth: add-remove-add cycle does not cause unbounded growth") {
+    val v = NativeVector[Int](8)
+    (0 until 16).foreach(v.addOne)
+    val capAfterPhase1 = v.storage.byteSize()
+    (0 until 15).foreach(_ => v.remove(0))
+    assert(v.storage.byteSize() == capAfterPhase1, "segment should not shrink after removes")
+    (0 until 5).foreach(v.addOne)
+    assert(
+      v.storage.byteSize() == capAfterPhase1,
+      s"unnecessary growth: ${v.storage.byteSize()} > $capAfterPhase1")
+  }
+
+  test("growth: clear then refill does not add extra capacity") {
+    val v = NativeVector[Int](8)
+    (0 until 8).foreach(v.addOne)
+    val capBefore = v.storage.byteSize()
+    v.clear()
+    (0 until 8).foreach(v.addOne)
+    assert(v.storage.byteSize() == capBefore, "clear+refill should reuse same segment")
+  }
+
+  test("growth: invariant segment capacity >= length × elementSize") {
+    val v = NativeVector[Int](4)
+    for (_ <- 0 until 50) {
+      v.addOne(0)
+      assert(
+        v.storage.byteSize() >= v.length * Layout[Int].byteSize,
+        s"capacity ${v.storage.byteSize()} < needed ${v.length * Layout[Int].byteSize}")
+    }
+  }
+
+  test("growth: remove all leaves length 0 but segment intact") {
+    val v = NativeVector[Int](16)
+    (0 until 10).foreach(v.addOne)
+    val segBefore = v.storage
+    (0 until 10).foreach(_ => v.remove(0))
+    assert(v.length == 0)
+    assert(v.storage.eq(segBefore), "segment should be reused after remove-all")
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // 8 — Integration / Scenario
+  // ═══════════════════════════════════════════════════════════════════
+
+  test("mixed add/remove/insert sequence") {
+    val v = NativeVector[Int](8)
+    v.addOne(1); v.addOne(2); v.addOne(3)
+    v.insert(0, 0)
+    v.addOne(4)
+    assert(v.length == 5)
+    assert(v.toList == List(0, 1, 2, 3, 4))
+  }
+
+  test("remove all then add fresh elements") {
+    val v = filledIntVector(5)
+    (0 until 5).foreach(_ => v.remove(0))
+    assert(v.length == 0)
+    (0 until 5).foreach(v.addOne)
+    assert(v.length == 5)
+    (0 until 5).foreach(i => assert(v(i) == i))
+  }
+
+  test("remove from middle then insert at same position") {
+    val v = filledIntVector(5)
+    v.remove(2)
+    v.insert(2, 99)
+    assert(v.length == 5)
+    assert(v.toList == List(0, 1, 99, 3, 4))
+  }
+
+  test("clear then fill with more elements than original") {
+    val v = filledIntVector(3)
+    v.clear()
+    (0 until 10).foreach(v.addOne)
+    assert(v.length == 10)
+    (0 until 10).foreach(i => assert(v(i) == i))
+  }
+
+  test("large N (10000) forward and backward access") {
+    val n = 10000
+    val v = NativeVector[Int](16)
+    (0 until n).foreach(v.addOne)
+    for (i <- 0 until n) assert(v(i) == i, s"forward mismatch at $i")
+    for (i <- (n - 1) to 0 by -1) assert(v(i) == i, s"backward mismatch at $i")
+  }
+
+  test("no stale data after remove") {
+    val v = NativeVector[Int](16)
+    v.addOne(10); v.addOne(20); v.addOne(30)
+    v.remove(1)
+    assert(v(1) == 30, "should be shifted value, not stale 20")
+    assert(v.length == 2)
   }
 
   test("remove all elements one by one") {
     val v = filledIntVector(5)
     for (i <- 0 until 5) {
       val removed = v.remove(0)
-      assert(removed == i, s"expected $i at step $i but got $removed")
+      assert(removed == i, s"expected $i at step $i got $removed")
     }
     assert(v.length == 0)
   }
 
-  test("remove on empty vector throws IndexOutOfBoundsException") {
+  test("addOne after many removes still works") {
     val v = NativeVector[Int](16)
-    intercept[IndexOutOfBoundsException] {
-      v.remove(0)
-    }
-  }
-
-  test("remove at negative index throws IndexOutOfBoundsException") {
-    val v = filledIntVector(3)
-    intercept[IndexOutOfBoundsException] {
-      v.remove(-1)
-    }
-  }
-
-  test("remove past end throws IndexOutOfBoundsException") {
-    val v = filledIntVector(3)
-    intercept[IndexOutOfBoundsException] {
-      v.remove(5)
-    }
-  }
-
-  // ── 6. apply ────────────────────────────────────────────────────
-
-  test("apply returns correct values after sequential add") {
-    val v = filledIntVector(10)
-    for (i <- 0 until 10) {
-      assert(v(i) == i, s"mismatch at index $i")
-    }
-  }
-
-  test("apply at index == length throws IndexOutOfBoundsException") {
-    val v = filledIntVector(3)
-    intercept[IndexOutOfBoundsException] {
-      v(3)
-    }
-  }
-
-  test("apply at index == length on empty vector throws") {
-    val v = NativeVector[Int](16)
-    intercept[IndexOutOfBoundsException] {
-      v(0)
-    }
-  }
-
-  test("apply at negative index throws IndexOutOfBoundsException") {
-    val v = filledIntVector(3)
-    intercept[IndexOutOfBoundsException] {
-      v(-1)
-    }
-  }
-
-  test("apply at index past length throws IndexOutOfBoundsException") {
-    val v = filledIntVector(3)
-    intercept[IndexOutOfBoundsException] {
-      v(10)
-    }
-  }
-
-  test("apply after clear throws IndexOutOfBoundsException") {
-    val v = filledIntVector(3)
-    v.clear()
-    intercept[IndexOutOfBoundsException] {
-      v(0)
-    }
-  }
-
-  // ── 7. update ───────────────────────────────────────────────────
-
-  test("update at valid index replaces element") {
-    val v = filledIntVector(5)
-    v.update(2, 99)
-    assert(v(2) == 99)
-    assert(v.length == 5)
-  }
-
-  test("update at index == length throws IndexOutOfBoundsException") {
-    val v = filledIntVector(3)
-    intercept[IndexOutOfBoundsException] {
-      v.update(3, 99)
-    }
-  }
-
-  test("update at negative index throws IndexOutOfBoundsException") {
-    val v = filledIntVector(3)
-    intercept[IndexOutOfBoundsException] {
-      v.update(-1, 99)
-    }
-  }
-
-  test("update at index past length throws IndexOutOfBoundsException") {
-    val v = filledIntVector(3)
-    intercept[IndexOutOfBoundsException] {
-      v.update(10, 99)
-    }
-  }
-
-  // ── 8. clear ────────────────────────────────────────────────────
-
-  test("clear resets length to 0") {
-    val v = filledIntVector(10)
-    v.clear()
-    assert(v.length == 0)
-  }
-
-  test("clear on empty vector leaves length at 0") {
-    val v = NativeVector[Int](16)
-    v.clear()
-    assert(v.length == 0)
+    (0 until 10).foreach(v.addOne)
+    (0 until 5).foreach(_ => v.remove(0))
+    v.addOne(99)
+    assert(v(v.length - 1) == 99)
   }
 
   test("clear then addOne works") {
@@ -403,374 +706,81 @@ class NativeVectorTest extends AnyFunSuite, ScalaCheckPropertyChecks {
     assert(v(1) == 20)
   }
 
-  // ── 9. Iterator ─────────────────────────────────────────────────
-
-  test("iterator over non-empty yields all elements in order") {
-    val v = filledIntVector(5)
-    val elems = v.iterator.toList
-    assert(elems == List(0, 1, 2, 3, 4))
-  }
-
-  test("iterator over empty vector yields nothing") {
+  test("insert interleaved with addOne preserves all elements") {
     val v = NativeVector[Int](16)
-    val elems = v.iterator.toList
-    assert(elems.isEmpty)
+    v.addOne(10); v.addOne(30)
+    v.insert(1, 20)
+    assert(v.toList == List(10, 20, 30))
   }
 
-  test("iterator next after exhaustion throws NoSuchElementException") {
-    val v = filledIntVector(3)
-    val it = v.iterator
-    it.next() // 0
-    it.next() // 1
-    it.next() // 2
-    intercept[NoSuchElementException] {
-      it.next()
-    }
-  }
+  // ═══════════════════════════════════════════════════════════════════
+  // 9 — Behavioral Parity with ArrayBuffer
+  // ═══════════════════════════════════════════════════════════════════
 
-  test("iterator hasNext after exhaustion returns false") {
-    val v = filledIntVector(3)
-    val it = v.iterator
-    it.next(); it.next(); it.next()
-    assert(!it.hasNext)
-  }
-
-  test("iterator over large vector") {
-    val v = NativeVector[Int](16)
-    (0 until 1000).foreach(v.addOne)
-    val elems = v.iterator.toList
-    assert(elems.length == 1000)
-    assert(elems.head == 0)
-    assert(elems.last == 999)
-  }
-
-  test("multiple iterators on same vector are independent") {
-    val v = filledIntVector(5)
-    val it1 = v.iterator
-    val it2 = v.iterator
-    it1.next() // 0
-    it1.next() // 1
-    assert(it2.next() == 0) // it2 should start fresh
-  }
-
-  // ── 10. Bounds Checking ─────────────────────────────────────────
-
-  test("negative index always throws regardless of length") {
-    for (len <- Seq(0, 1, 5, 100)) {
-      val v = filledIntVector(len)
-      intercept[IndexOutOfBoundsException] {
-        v(-1)
-      }
-    }
-  }
-
-  test("index equal to length always throws for read") {
-    for (len <- Seq(0, 1, 5, 10)) {
-      val v = filledIntVector(len)
-      intercept[IndexOutOfBoundsException](v(len), s"read at length=$len should throw")
-    }
-  }
-
-  test("index equal to length always throws for update") {
-    for (len <- Seq(0, 1, 5, 10)) {
-      val v = filledIntVector(len)
-      intercept[IndexOutOfBoundsException](v.update(len, 99), s"update at length=$len should throw")
-    }
-  }
-
-  test("insert at idx == length is valid for all lengths") {
-    for (len <- Seq(0, 1, 5)) {
-      val v = filledIntVector(len)
-      v.insert(len, 99)
-      assert(v.length == len + 1, s"failed at length=$len")
-      assert(v(len) == 99, s"last element wrong at length=$len")
-    }
-  }
-
-  test("insert at idx > length always throws") {
-    for (len <- Seq(0, 1, 5)) {
-      val v = filledIntVector(len)
-      intercept[IndexOutOfBoundsException] {
-        v.insert(len + 1, 99)
-      }
-    }
-  }
-
-  // ── 11. Capacity and Resize ────────────────────────────────────
-
-  test("grow beyond initial capacity preserves all elements") {
-    val v = NativeVector[Int](4)
-    val n = 50
-    (0 until n).foreach(v.addOne)
-    assert(v.length == n)
-    (0 until n).foreach(i => assert(v(i) == i))
-  }
-
-  test("grow after removing many elements") {
-    val v = NativeVector[Int](16)
-    (0 until 100).foreach(v.addOne)
-    // Remove first 80
-    (0 until 80).foreach(_ => v.remove(0))
-    assert(v.length == 20)
-    assert(v.head == 80)
-    assert(v(19) == 99)
-    // Add more past current capacity
-    (0 until 50).foreach(v.addOne)
-    assert(v.length == 70)
-    assert(v.head == 80)
-    assert(v(69) == 49)
-  }
-
-  test("addOne exactly fills initial capacity") {
-    val initSize = 8
-    val v = NativeVector[Int](initSize)
-    (0 until initSize).foreach(v.addOne)
-    assert(v.length == initSize)
-    (0 until initSize).foreach(i => assert(v(i) == i))
-  }
-
-  test("addOne one past initial capacity triggers resize") {
-    val initSize = 4
-    val v = NativeVector[Int](initSize)
-    (0 until initSize).foreach(v.addOne)
-    v.addOne(99) // should trigger resize
-    assert(v.length == initSize + 1)
-    assert(v(initSize) == 99)
-    // Verify first elements intact
-    (0 until initSize).foreach(i => assert(v(i) == i))
-  }
-
-  test("repeated resize cycles preserve data") {
-    val v = NativeVector[Int](2)
-    (0 until 256).foreach(v.addOne) // multiple resize cycles
-    assert(v.length == 256)
-    (0 until 256).foreach(i => assert(v(i) == i))
-  }
-
-  // ── 12. Edge Cases: Double type ─────────────────────────────────
-
-  test("Double vector addOne and apply") {
-    val v = NativeVector[Double](16)
-    v.addOne(3.14)
-    v.addOne(2.71)
-    assert(v.head == 3.14)
-    assert(v(1) == 2.71)
-    assert(v.length == 2)
-  }
-
-  test("Double insert at beginning shifts existing elements") {
-    val v = filledDoubleVector(3)
-    v.insert(0, 99.9)
-    assert(v.length == 4)
-    assert(v.head == 99.9)
-    assert(v(1) == 0.0)
-    assert(v(2) == 1.0)
-    assert(v(3) == 2.0)
-  }
-
-  test("Double vector grows correctly") {
-    val v = NativeVector[Double](2)
-    (0 until 10).map(_.toDouble).foreach(v.addOne)
-    assert(v.length == 10)
-    (0 until 10).foreach(i => assert(v(i) == i.toDouble))
-  }
-
-  test("Double remove single element from size-1") {
-    val v = filledDoubleVector(1)
-    val removed = v.remove(0)
-    assert(removed == 0.0)
-    assert(v.length == 0)
-  }
-
-  test("Double apply at index == length throws") {
-    val v = filledDoubleVector(3)
-    intercept[IndexOutOfBoundsException] {
-      v(3)
-    }
-  }
-
-  // ── 13. Edge Cases: Zero Initial Size ──────────────────────────
-
-  test("zero initial size addOne works") {
-    val v = NativeVector[Int](0)
-    v.addOne(42)
-    assert(v.head == 42)
-    assert(v.length == 1)
-  }
-
-  test("zero initial size multiple addOne works") {
-    val v = NativeVector[Int](0)
-    (0 until 10).foreach(v.addOne)
-    assert(v.length == 10)
-    (0 until 10).foreach(i => assert(v(i) == i))
-  }
-
-  test("zero initial size Double vector addOne works") {
-    val v = NativeVector[Double](0)
-    (0 until 5).map(_.toDouble).foreach(v.addOne)
-    assert(v.length == 5)
-    (0 until 5).foreach(i => assert(v(i) == i.toDouble))
-  }
-
-  // ── 14. Integration ─────────────────────────────────────────────
-
-  test("mixed add, remove, insert sequence") {
-    val v = NativeVector[Int](8)
-
-    v.addOne(1)
-    v.addOne(2)
-    v.addOne(3)           // [1, 2, 3]
-    v.insert(0, 0)        // [0, 1, 2, 3]
-    v.addOne(4)           // [0, 1, 2, 3, 4]
-
-    assert(v.length == 5)
-    assert(v.head == 0)
-    assert(v(1) == 1)
-    assert(v(2) == 2)
-    assert(v(3) == 3)
-    assert(v(4) == 4)
-  }
-
-  test("remove all then add fresh elements") {
-    val v = filledIntVector(5)
-    (0 until 5).foreach(_ => v.remove(0))
-    assert(v.length == 0)
-
-    (0 until 5).foreach(v.addOne)
-    assert(v.length == 5)
-    (0 until 5).foreach(i => assert(v(i) == i))
-  }
-
-  test("remove from middle then insert at same position") {
-    val v = filledIntVector(5)
-    v.remove(2)           // [0, 1, 3, 4]
-    v.insert(2, 99)       // expected: [0, 1, 99, 3, 4]
-    assert(v.length == 5)
-    assert(v.head == 0)
-    assert(v(1) == 1)
-    assert(v(2) == 99)
-    assert(v(3) == 3)
-    assert(v(4) == 4)
-  }
-
-  test("clear then fill with more elements than original") {
-    val v = filledIntVector(3)
-    v.clear()
-    (0 until 10).foreach(v.addOne)
-    assert(v.length == 10)
-    (0 until 10).foreach(i => assert(v(i) == i))
-  }
-
-  test("large number of elements with sequential access") {
-    val n = 10000
-    val v = NativeVector[Int](16)
-    (0 until n).foreach(v.addOne)
-
-    // Forward read
-    for (i <- 0 until n) {
-      assert(v(i) == i, s"forward mismatch at $i")
-    }
-
-    // Backward read
-    for (i <- (n - 1) to 0 by -1) {
-      assert(v(i) == i, s"backward mismatch at $i")
-    }
-  }
-
-  test("vector never returns stale data after remove") {
-    val v = NativeVector[Int](16)
-    v.addOne(10)
-    v.addOne(20)
-    v.addOne(30)
-    v.remove(1)
-    assert(v(1) == 30, "element at idx 1 should be shifted value, not stale 20")
-    assert(v.length == 2)
-  }
-
-  // ── 15. Contract: toString / equality (minimal) ─────────────────
-
-  test("empty vector toString") {
-    val v = NativeVector[Int](16)
-    val s = v.toString
-    assert(s.nonEmpty, "toString should not be empty")
-  }
-
-  test("non-empty vector toString") {
-    val v = filledIntVector(3)
-    val s = v.toString
-    assert(s.nonEmpty)
-    assert(s.contains("NativeVector"), "should contain class name")
-  }
-
-  test("NativeVector extends AbstractBuffer") {
-    val v = NativeVector[Int](16)
-    assert(v.isInstanceOf[scala.collection.mutable.AbstractBuffer[Int]])
-  }
-
-  // ── 16. ArrayBuffer behavioral parity ──────────────────────────
-
-  test("addOne sequence matches ArrayBuffer") {
+  test("parity: addOne sequence matches ArrayBuffer") {
     forAll { (elements: List[Int]) =>
       val nv = NativeVector[Int](16)
       val ab = ArrayBuffer.empty[Int]
-      elements.foreach { e => nv.addOne(e); ab.addOne(e) }
-      assert(nv.length == ab.length)
-      assert(nv.iterator.toList == ab.iterator.toList)
-    }
-  }
-
-  test("insert at every position matches ArrayBuffer") {
-    forAll { (init: List[Int], elem: Int) =>
-      val nv = NativeVector[Int](16)
-      val ab = ArrayBuffer.empty[Int]
-      init.foreach { e => nv.addOne(e); ab.addOne(e) }
-      val positions = init.indices.toVector :+ init.length
-      for (idx <- positions) {
-        nv.insert(idx, elem)
-        ab.insert(idx, elem)
+      elements.foreach { e =>
+        nv.addOne(e); ab.addOne(e)
       }
       assert(nv.length == ab.length)
       assert(nv.iterator.toList == ab.iterator.toList)
     }
   }
 
-  test("remove from every position matches ArrayBuffer") {
+  test("parity: insert at every position matches ArrayBuffer") {
+    forAll { (init: List[Int], elem: Int) =>
+      val nv = NativeVector[Int](16)
+      val ab = ArrayBuffer.empty[Int]
+      init.foreach { e =>
+        nv.addOne(e); ab.addOne(e)
+      }
+      val positions = init.indices.toVector :+ init.length
+      for (idx <- positions) { nv.insert(idx, elem); ab.insert(idx, elem) }
+      assert(nv.length == ab.length)
+      assert(nv.iterator.toList == ab.iterator.toList)
+    }
+  }
+
+  test("parity: remove from every position matches ArrayBuffer") {
     forAll { (init: List[Int], pos: Int) =>
       val nv = NativeVector[Int](16)
       val ab = ArrayBuffer.empty[Int]
-      init.foreach { e => nv.addOne(e); ab.addOne(e) }
+      init.foreach { e =>
+        nv.addOne(e); ab.addOne(e)
+      }
       whenever(init.nonEmpty) {
         val idx = (pos & 0x7fffffff) % init.length
-        val nvRemoved = nv.remove(idx)
-        val abRemoved = ab.remove(idx)
-        assert(nvRemoved == abRemoved)
+        assert(nv.remove(idx) == ab.remove(idx))
         assert(nv.length == ab.length)
         assert(nv.iterator.toList == ab.iterator.toList)
       }
     }
   }
 
-  test("update element at every position matches ArrayBuffer") {
+  test("parity: update at every position matches ArrayBuffer") {
     forAll { (init: List[Int], replacement: Int) =>
       whenever(init.nonEmpty) {
         val nv = NativeVector[Int](16)
         val ab = ArrayBuffer.empty[Int]
-        init.foreach { e => nv.addOne(e); ab.addOne(e) }
-        for (idx <- init.indices) {
-          nv(idx) = replacement
-          ab(idx) = replacement
+        init.foreach { e =>
+          nv.addOne(e); ab.addOne(e)
         }
+        for (idx <- init.indices) { nv(idx) = replacement; ab(idx) = replacement }
         assert(nv.length == ab.length)
         assert(nv.iterator.toList == ab.iterator.toList)
       }
     }
   }
 
-  test("mixed operations sequence matches ArrayBuffer") {
+  test("parity: mixed operations sequence matches ArrayBuffer") {
     forAll { (init: List[Int]) =>
       val nv = NativeVector[Int](16)
       val ab = ArrayBuffer.empty[Int]
-      init.foreach { e => nv.addOne(e); ab.addOne(e) }
+      init.foreach { e =>
+        nv.addOne(e); ab.addOne(e)
+      }
 
       for (i <- nv.length until 2 * nv.length) {
         nv.addOne(i * 10)
@@ -780,16 +790,13 @@ class NativeVectorTest extends AnyFunSuite, ScalaCheckPropertyChecks {
 
       if (nv.length > 2) {
         for (_ <- Seq(0, 0, nv.length - 1)) {
-          val ir = nv.remove(0)
-          val ar = ab.remove(0)
-          assert(ir == ar)
+          assert(nv.remove(0) == ab.remove(0))
         }
         assert(nv.iterator.toList == ab.iterator.toList)
       }
 
       nv.clear(); ab.clear()
       assert(nv.length == ab.length)
-      assert(nv.iterator.toList == ab.iterator.toList)
 
       (0 until 5).foreach { i =>
         nv.addOne(i); ab.addOne(i)
@@ -797,4 +804,23 @@ class NativeVectorTest extends AnyFunSuite, ScalaCheckPropertyChecks {
       assert(nv.iterator.toList == ab.iterator.toList)
     }
   }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // 10 — Contract
+  // ═══════════════════════════════════════════════════════════════════
+
+  test("contract: empty vector toString") {
+    assert(NativeVector[Int](16).toString.nonEmpty)
+  }
+
+  test("contract: non-empty vector toString contains className") {
+    val s = filledIntVector(3).toString
+    assert(s.nonEmpty)
+    assert(s.contains("NativeVector"))
+  }
+
+  test("contract: NativeVector extends AbstractBuffer") {
+    assert(NativeVector[Int](16).isInstanceOf[scala.collection.mutable.AbstractBuffer[Int]])
+  }
+
 }

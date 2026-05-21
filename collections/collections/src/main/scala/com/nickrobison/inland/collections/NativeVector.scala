@@ -32,7 +32,24 @@ class NativeVector[A: Layout] private (
     this(idx) = elem
   }
 
-  override def insertAll(idx: Int, elems: IterableOnce[A]): Unit = ???
+  override def insertAll(idx: Int, elems: IterableOnce[A]): Unit = {
+    checkWithinBounds(idx, idx)
+    val elemsList = elems.iterator.toList
+    val elemsCount = elemsList.size
+    if (elemsCount == 0) return
+    ensureSize(currentSize + elemsCount)
+    var i = currentSize - 1
+    while (i >= idx) {
+      Layout[A].write(i + elemsCount, Layout[A].read(i)(using storage))(using storage)
+      i -= 1
+    }
+    var j = 0
+    while (j < elemsCount) {
+      Layout[A].write(idx + j, elemsList(j))(using storage)
+      j += 1
+    }
+    currentSize += elemsCount
+  }
 
   override def remove(idx: Int): A = {
     checkWithinBounds(idx, idx + 1)
@@ -45,12 +62,27 @@ class NativeVector[A: Layout] private (
     res
   }
 
-  override def remove(idx: Int, count: Int): Unit = ???
+  override def remove(idx: Int, count: Int): Unit = {
+    if (count < 0) throw new IllegalArgumentException(s"count must be non-negative, got $count")
+    if (count == 0) return
+    checkWithinBounds(idx, idx + count)
+    val srcByteOffset = (idx + count).toLong * Layout[A].byteSize
+    val dstByteOffset = idx.toLong * Layout[A].byteSize
+    val bytesToMove = (currentSize - (idx + count)).toLong * Layout[A].byteSize
+    if (bytesToMove > 0) {
+      MemorySegment.copy(storage, srcByteOffset, storage, dstByteOffset, bytesToMove)
+    }
+    reduceToSize(currentSize - count)
+  }
 
   override def patchInPlace(
       from: Int,
       patch: IterableOnce[A],
-      replaced: Int): NativeVector.this.type = ???
+      replaced: Int): NativeVector.this.type = {
+    remove(from, replaced)
+    insertAll(from, patch)
+    this
+  }
 
   override def addOne(elem: A): NativeVector.this.type = {
     insert(currentSize, elem)
@@ -71,7 +103,7 @@ class NativeVector[A: Layout] private (
 
   override def length: Int = currentSize
 
-  override protected[this] def className: String = "NativeVector"
+  override protected def className: String = "NativeVector"
 
   override def iterator: Iterator[A] = new Iterator[A] {
 
@@ -90,10 +122,6 @@ class NativeVector[A: Layout] private (
   private inline def checkWithinBounds(lo: Int, hi: Int): Unit = {
     if (lo < 0) throw CommonErrors.indexOutOfBounds(index = lo, max = currentSize - 1)
     if (hi > currentSize) throw CommonErrors.indexOutOfBounds(index = hi - 1, max = currentSize - 1)
-  }
-
-  private inline def computeOffset(idx: Int): Long = {
-    idx * Layout[A].byteSize
   }
 
   private def ensureSize(n: Int): Unit = {
