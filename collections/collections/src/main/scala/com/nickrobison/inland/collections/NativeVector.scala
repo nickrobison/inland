@@ -3,11 +3,13 @@ package com.nickrobison.inland.collections
 import com.nickrobison.inland.allocator.{CommonErrors, Layout, NativeAllocator}
 
 import java.lang.foreign.MemorySegment
+import java.util.NoSuchElementException
 import scala.collection.mutable
 
 class NativeVector[A: Layout] private(private[collections] var storage: MemorySegment, initialSize: Int)(implicit allocator: NativeAllocator) extends mutable.AbstractBuffer[A] {
 
   private var currentSize: Int = 0
+  private var capacity: Int = (storage.byteSize() / Layout[A].byteSize).toInt
 
   override def prepend(elem: A): NativeVector.this.type = {
     insert(0, elem)
@@ -17,6 +19,10 @@ class NativeVector[A: Layout] private(private[collections] var storage: MemorySe
   override def insert(idx: Int, elem: A): Unit = {
     checkWithinBounds(idx, idx)
     ensureSize(currentSize + 1)
+    val srcOffset = idx * Layout[A].byteSize
+    val destOffset = (idx + 1) * Layout[A].byteSize
+    val bytesToCopy = (currentSize - idx) * Layout[A].byteSize
+    MemorySegment.copy(this.storage, srcOffset, this.storage, destOffset, bytesToCopy)
     currentSize += 1
     this(idx) = elem
   }
@@ -51,7 +57,7 @@ class NativeVector[A: Layout] private(private[collections] var storage: MemorySe
   }
 
   override def apply(i: Int): A = {
-    checkWithinBounds(i, i)
+    checkWithinBounds(i, i + 1)
     Layout[A].read(i)(using storage)
   }
 
@@ -61,16 +67,16 @@ class NativeVector[A: Layout] private(private[collections] var storage: MemorySe
 
     private var iterIdx = 0
 
-    override def hasNext: Boolean = iterIdx < currentSize
+    override def hasNext: Boolean = iterIdx < NativeVector.this.currentSize
 
     override def next(): A = {
+      if (!hasNext) throw NoSuchElementException()
       val a = apply(iterIdx)
       iterIdx += 1
       a
     }
   }
 
-  // TODO: Implement
   private inline def checkWithinBounds(lo: Int, hi: Int): Unit = {
     if (lo < 0) throw CommonErrors.indexOutOfBounds(index = lo, max = currentSize - 1)
     if (hi > currentSize) throw CommonErrors.indexOutOfBounds(index = hi - 1, max = currentSize - 1)
@@ -80,18 +86,15 @@ class NativeVector[A: Layout] private(private[collections] var storage: MemorySe
     idx * Layout[A].byteSize
   }
 
-  private def ensureSize(n: Long): Unit = {
-    val segmentSize = storage.byteSize()
-    val currentOffset = currentSize * Layout[A].byteSize
-    val needed = Layout[A].byteSize * n
-    if ((segmentSize - currentOffset) <= needed) {
-      // We need to resize the array by a factor of 2
-      this.storage = allocator.reallocate(storage, currentSize, (currentSize * 2).toLong)
+  private def ensureSize(n: Int): Unit = {
+    if (capacity < n) {
+      val newCapacity = math.max(n, capacity * 2)
+      this.storage = allocator.reallocate(storage, currentSize.toLong, newCapacity.toLong)
+      this.capacity = (storage.byteSize() / Layout[A].byteSize).toInt
     }
   }
 
   private def reduceToSize(n: Int): Unit = {
-    // TODO: We probably need to zero out things here
     currentSize = n
   }
 }

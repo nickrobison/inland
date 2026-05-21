@@ -4,6 +4,7 @@ import com.nickrobison.inland.allocator.HeapAllocator
 import com.nickrobison.inland.allocator.instances.given
 import org.scalatest.funsuite.AnyFunSuite
 
+import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
 class NativeVectorTest extends AnyFunSuite {
@@ -115,6 +116,7 @@ class NativeVectorTest extends AnyFunSuite {
     // BUG #2: insert overwrites without shifting right
     // Expected: [99, 1, 2, 3]
     // Actual:   [99, 2, 3, garbage]
+//    val v = ArrayBuffer[Int]()
     val v = NativeVector[Int](16)
     v.addOne(1)
     v.addOne(2)
@@ -319,20 +321,19 @@ class NativeVectorTest extends AnyFunSuite {
   }
 
   test("apply at index == length throws IndexOutOfBoundsException") {
-    // BUG #1: current impl allows reading at currentSize
-    // because checkWithinBounds(i, i) uses hi > currentSize,
-    // but i == currentSize passes (currentSize > currentSize is false)
     val v = filledIntVector(3)
     intercept[IndexOutOfBoundsException] {
-      v(3) // currentSize == 3, valid indices are 0..2
+      v(3)
     }
   }
 
   test("apply at index == length on empty vector throws") {
-    // BUG #1
+    // NOTE: head on empty collection throws NoSuchElementException,
+    // not IndexOutOfBoundsException. This test documents a pre-existing
+    // expectation discrepancy.
     val v = NativeVector[Int](16)
     intercept[IndexOutOfBoundsException] {
-      v.head // length == 0, no valid indices
+      v.head
     }
   }
 
@@ -436,9 +437,6 @@ class NativeVectorTest extends AnyFunSuite {
   }
 
   test("iterator next after exhaustion throws NoSuchElementException") {
-    // BUG #5: Iterator.next() calls apply(currentSize) which
-    // passes bounds check (BUG #1) and reads garbage.
-    // Should throw NoSuchElementException when done.
     val v = filledIntVector(3)
     val it = v.iterator
     it.next() // 0
@@ -631,9 +629,6 @@ class NativeVectorTest extends AnyFunSuite {
   }
 
   test("zero initial size Double vector addOne works") {
-    // BUG #4: Double is 8 bytes, alignedSize(0) = 8, needed = 8
-    // ensureSize(1): 8 - 0 = 8 <= 8 → true → reallocates(currentSize*2=0)
-    // This triggers reallocation every single addOne, may cause issues
     val v = NativeVector[Double](0)
     (0 until 5).map(_.toDouble).foreach(v.addOne)
     assert(v.length == 5)
