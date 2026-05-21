@@ -3,11 +3,12 @@ package com.nickrobison.inland.collections
 import com.nickrobison.inland.allocator.HeapAllocator
 import com.nickrobison.inland.allocator.instances.given
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
-class NativeVectorTest extends AnyFunSuite {
+class NativeVectorTest extends AnyFunSuite, ScalaCheckPropertyChecks {
 
   // ── Helpers ──────────────────────────────────────────────────────
 
@@ -706,5 +707,96 @@ class NativeVectorTest extends AnyFunSuite {
   test("NativeVector extends AbstractBuffer") {
     val v = NativeVector[Int](16)
     assert(v.isInstanceOf[scala.collection.mutable.AbstractBuffer[Int]])
+  }
+
+  // ── 16. ArrayBuffer behavioral parity ──────────────────────────
+
+  test("addOne sequence matches ArrayBuffer") {
+    forAll { (elements: List[Int]) =>
+      val nv = NativeVector[Int](16)
+      val ab = ArrayBuffer.empty[Int]
+      elements.foreach { e => nv.addOne(e); ab.addOne(e) }
+      assert(nv.length == ab.length)
+      assert(nv.iterator.toList == ab.iterator.toList)
+    }
+  }
+
+  test("insert at every position matches ArrayBuffer") {
+    forAll { (init: List[Int], elem: Int) =>
+      val nv = NativeVector[Int](16)
+      val ab = ArrayBuffer.empty[Int]
+      init.foreach { e => nv.addOne(e); ab.addOne(e) }
+      val positions = init.indices.toVector :+ init.length
+      for (idx <- positions) {
+        nv.insert(idx, elem)
+        ab.insert(idx, elem)
+      }
+      assert(nv.length == ab.length)
+      assert(nv.iterator.toList == ab.iterator.toList)
+    }
+  }
+
+  test("remove from every position matches ArrayBuffer") {
+    forAll { (init: List[Int], pos: Int) =>
+      val nv = NativeVector[Int](16)
+      val ab = ArrayBuffer.empty[Int]
+      init.foreach { e => nv.addOne(e); ab.addOne(e) }
+      whenever(init.nonEmpty) {
+        val idx = (pos & 0x7fffffff) % init.length
+        val nvRemoved = nv.remove(idx)
+        val abRemoved = ab.remove(idx)
+        assert(nvRemoved == abRemoved)
+        assert(nv.length == ab.length)
+        assert(nv.iterator.toList == ab.iterator.toList)
+      }
+    }
+  }
+
+  test("update element at every position matches ArrayBuffer") {
+    forAll { (init: List[Int], replacement: Int) =>
+      whenever(init.nonEmpty) {
+        val nv = NativeVector[Int](16)
+        val ab = ArrayBuffer.empty[Int]
+        init.foreach { e => nv.addOne(e); ab.addOne(e) }
+        for (idx <- init.indices) {
+          nv(idx) = replacement
+          ab(idx) = replacement
+        }
+        assert(nv.length == ab.length)
+        assert(nv.iterator.toList == ab.iterator.toList)
+      }
+    }
+  }
+
+  test("mixed operations sequence matches ArrayBuffer") {
+    forAll { (init: List[Int]) =>
+      val nv = NativeVector[Int](16)
+      val ab = ArrayBuffer.empty[Int]
+      init.foreach { e => nv.addOne(e); ab.addOne(e) }
+
+      for (i <- nv.length until 2 * nv.length) {
+        nv.addOne(i * 10)
+        ab.addOne(i * 10)
+      }
+      assert(nv.iterator.toList == ab.iterator.toList)
+
+      if (nv.length > 2) {
+        for (_ <- Seq(0, 0, nv.length - 1)) {
+          val ir = nv.remove(0)
+          val ar = ab.remove(0)
+          assert(ir == ar)
+        }
+        assert(nv.iterator.toList == ab.iterator.toList)
+      }
+
+      nv.clear(); ab.clear()
+      assert(nv.length == ab.length)
+      assert(nv.iterator.toList == ab.iterator.toList)
+
+      (0 until 5).foreach { i =>
+        nv.addOne(i); ab.addOne(i)
+      }
+      assert(nv.iterator.toList == ab.iterator.toList)
+    }
   }
 }
