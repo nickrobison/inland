@@ -1,6 +1,7 @@
 package com.nickrobison.inland.collections
 
 import com.nickrobison.inland.allocator.{CommonErrors, NativeAllocator}
+import com.nickrobison.inland.types.Layout
 
 import java.lang.foreign.MemorySegment
 import java.util.NoSuchElementException

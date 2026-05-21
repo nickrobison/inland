@@ -1,6 +1,7 @@
 package com.nickrobison.inland.collections
 
 import com.nickrobison.inland.allocator.NativeAllocator
+import com.nickrobison.inland.types.Layout
 import org.scalacheck.{Arbitrary, Prop}
 import org.scalacheck.Prop.forAll
 import org.typelevel.discipline.Laws

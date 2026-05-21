@@ -7,6 +7,8 @@ import com.nickrobison.inland.allocator.{ArenaAllocator, HeapAllocator}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.Checkers
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
+import com.nickrobison.inland.allocator.tests.ComplexClass.given
+import org.scalacheck.Arbitrary
 
 import java.lang.foreign.Arena
 
@@ -24,5 +26,7 @@ class LawTests extends AnyFunSuite with FunSuiteDiscipline with Checkers {
   checkAll("Layout[Float]", LayoutLaws[Float].laws)
   checkAll("Layout[Byte]", LayoutLaws[Byte].laws)
   checkAll("Layout[Char]", LayoutLaws[Char].laws)
+  checkAll("Layout[SimpleClass]", LayoutLaws[SimpleClass].laws)
+  checkAll("Layout[ComplexClass]", LayoutLaws[ComplexClass].laws)
 
 }

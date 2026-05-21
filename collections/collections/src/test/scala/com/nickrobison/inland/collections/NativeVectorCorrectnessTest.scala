@@ -2,6 +2,7 @@ package com.nickrobison.inland.collections
 
 import com.nickrobison.inland.allocator.HeapAllocator
 import com.nickrobison.inland.allocator.instances.given
+import com.nickrobison.inland.types.Layout
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.lang.foreign.{MemorySegment, ValueLayout}
