@@ -7,7 +7,7 @@ ThisBuild / version := "0.0.1-SNAPSHOT"
 
 lazy val commonSettings = Seq(
   scalaVersion := scala3Version,
-  scalacOptions ++= Seq("-Xsemanticdb", "-Wunused:all"),
+    scalacOptions ++= Seq("-Xsemanticdb", "-Wunused:all", "-java-output-version:25"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest" % "3.2.20" % Test
   )
