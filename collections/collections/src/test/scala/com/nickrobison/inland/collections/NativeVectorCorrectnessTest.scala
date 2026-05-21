@@ -1,6 +1,6 @@
 package com.nickrobison.inland.collections
 
-import com.nickrobison.inland.allocator.{HeapAllocator, Layout}
+import com.nickrobison.inland.allocator.HeapAllocator
 import com.nickrobison.inland.allocator.instances.given
 import org.scalatest.funsuite.AnyFunSuite
 

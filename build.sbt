@@ -27,6 +27,7 @@ lazy val types = (project in file("types"))
 // Native Allocator
 
 lazy val allocator = (project in file("allocator"))
+  .dependsOn(types)
   .settings(commonSettings)
   .settings(
     name := "allocator"
@@ -85,8 +86,17 @@ lazy val collectionsRoot = (project in file("collections"))
     name := "collections-root"
   )
 
+// Derive
+lazy val derive  = (project in file("derive"))
+  .dependsOn(types)
+  .settings(commonSettings)
+  .settings(
+    name := "derive"
+  )
+
+
 lazy val root = (project in file("."))
-  .aggregate(allocator, allocatorLaws, allocatorTests, executorRoot, types, collectionsRoot)
+  .aggregate(allocator, allocatorLaws, allocatorTests, executorRoot, types, collectionsRoot, derive)
   .settings(
     name := "inland",
     idePackagePrefix := Some("com.nickrobison.inland")

@@ -1,5 +1,9 @@
 package com.nickrobison.inland.allocator
 
+import com.nickrobison.inland.types.Layout
+import com.nickrobison.inland.types.Layout.specializedLayout
+
+import java.lang.foreign.ValueLayout.OfDouble
 import java.lang.foreign.{MemoryLayout, MemorySegment, ValueLayout}
 
 object instances {
@@ -10,18 +14,21 @@ object instances {
     override def write(offset: Long, value: Int)(using segment: MemorySegment): Unit =
       segment.setAtIndex(ValueLayout.JAVA_INT, offset, value)
 
-    override def read(offset: Long)(using segment: MemorySegment): Int =
+    override def read(offset: Long)(using segment: MemorySegment): Int = {
       segment.getAtIndex(ValueLayout.JAVA_INT, offset)
+    }
   }
 
   given Layout[Double] = new Layout[Double] {
-    override def memoryLayout: MemoryLayout = ValueLayout.JAVA_DOUBLE
 
-    override def write(offset: Long, value: Double)(using segment: MemorySegment): Unit =
-      segment.setAtIndex(ValueLayout.JAVA_DOUBLE, offset, value)
+    override def memoryLayout: OfDouble = specializedLayout[Double]
+
+    override def write(offset: Long, value: Double)(using segment: MemorySegment): Unit = {
+      segment.setAtIndex(memoryLayout, offset, value)
+    }
 
     override def read(offset: Long)(using segment: MemorySegment): Double =
-      segment.getAtIndex(ValueLayout.JAVA_DOUBLE, offset)
+      segment.getAtIndex(memoryLayout, offset)
   }
 
   given Layout[Long] = new Layout[Long] {

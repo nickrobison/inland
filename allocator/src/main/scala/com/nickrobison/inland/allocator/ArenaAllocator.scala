@@ -1,5 +1,7 @@
 package com.nickrobison.inland.allocator
 
+import com.nickrobison.inland.types.Layout
+
 import java.lang.foreign.{Arena, MemorySegment}
 import scala.collection.mutable.ArrayBuffer
 

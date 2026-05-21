@@ -1,7 +1,8 @@
 package com.nickrobison.inland.allocator.laws
 
 import cats.Eq
-import com.nickrobison.inland.allocator.{Layout, NativeAllocator}
+import com.nickrobison.inland.allocator.NativeAllocator
+import com.nickrobison.inland.types.Layout
 import org.scalacheck.{Arbitrary, Gen, Prop}
 import org.scalacheck.Prop.forAll
 import org.typelevel.discipline.Laws
