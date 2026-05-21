@@ -48,12 +48,12 @@ trait LayoutLaws[A] extends Laws {
 
         // Write all values sequentially
         values.zipWithIndex.foreach { case (v, idx) =>
-          layout.write(idx, v)(segment)
+          layout.write(idx, v)(using segment)
         }
 
         // Read them back and verify
         val readValues = values.indices.map { idx =>
-          layout.read(idx)(segment)
+          layout.read(idx)(using segment)
         }
 
         Eq[Seq[A]].eqv(values, readValues)
@@ -70,19 +70,22 @@ trait LayoutLaws[A] extends Laws {
         val segment = allocator.allocate[A](2)
 
         // Write different values at offset 0 and offset 1
-        layout.write(0, valueA)(segment)
-        layout.write(1, valueB)(segment)
+        layout.write(0, valueA)(using segment)
+        layout.write(1, valueB)(using segment)
 
         // Read back and verify they have different values
-        val readA = layout.read(0)(segment)
-        val readB = layout.read(1)(segment)
+        val readA = layout.read(0)(using segment)
+        val readB = layout.read(1)(using segment)
 
-        Eq[A].eqv(readA, valueA) && Eq[A].eqv(readB, valueB) && Eq[A].neqv(readA, readB)
+        nonAliasingValue(readA, readB, valueA, valueB)
       } else {
         true // Skip test for identical values
       }
     }
   }
+
+  private def nonAliasingValue(readA: A, readB: A, valueA: A, valueB: A): Boolean =
+    Eq[A].eqv(readA, valueA) && Eq[A].eqv(readB, valueB) && Eq[A].neqv(readA, readB)
 
   class LayoutProperties(
                          name: String,

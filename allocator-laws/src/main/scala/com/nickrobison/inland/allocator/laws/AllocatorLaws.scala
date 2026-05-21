@@ -65,7 +65,7 @@ trait AllocatorLaws[A] extends Laws {
         val readA = layout.read(0)(using a)
         val readB = layout.read(0)(using b)
 
-        Eq[A].eqv(readA, valueA) && Eq[A].eqv(readB, valueB) && Eq[A].neqv(readA, readB)
+        nonAliasingValue(readA, readB, valueA, valueB)
       } else {
         true // Skip test for non-positive counts or identical values
       }
@@ -104,19 +104,8 @@ trait AllocatorLaws[A] extends Laws {
   private def reallocatePreservesContentsLaws(): Prop = {
     forAll { (values: Seq[A], newCount: Int) =>
       if (values.nonEmpty && newCount > values.length) {
-        val oldSegment = allocator.allocate[A](values.length)
-        values.zipWithIndex.foreach { case (v, idx) =>
-          layout.write(idx, v)(using oldSegment)
-        }
-
-        val newSegment = allocator.reallocate[A](oldSegment, values.length, newCount)
-
-        // Check that original values are preserved
-        val preserved = values.indices.forall { idx =>
-          Eq[A].eqv(layout.read(idx)(using oldSegment), layout.read(idx)(using newSegment))
-        }
-
-        preserved
+        val (oldSegment, newSegment) = allocWriteAndReallocate(values, newCount)
+        valuesPreserved(oldSegment, newSegment, values.length)
       } else {
         true
       }
@@ -139,24 +128,27 @@ trait AllocatorLaws[A] extends Laws {
   private def reallocateShrinksCorrectlyLaws(): Prop = {
     forAll { (values: Seq[A], newCount: Int) =>
       if (values.nonEmpty && newCount > 0 && newCount < values.length) {
-        val oldSegment = allocator.allocate[A](values.length)
-        values.zipWithIndex.foreach { case (v, idx) =>
-          layout.write(idx, v)(using oldSegment)
-        }
-
-        val newSegment = allocator.reallocate[A](oldSegment, values.length, newCount)
-
-        // Check that values within new bounds are preserved
-        val preserved = (0 until newCount).forall { idx =>
-          Eq[A].eqv(layout.read(idx)(using oldSegment), layout.read(idx)(using newSegment))
-        }
-
-        preserved
+        val (oldSegment, newSegment) = allocWriteAndReallocate(values, newCount)
+        valuesPreserved(oldSegment, newSegment, newCount)
       } else {
         true
       }
     }
   }
+
+  private def nonAliasingValue(readA: A, readB: A, valueA: A, valueB: A): Boolean =
+    Eq[A].eqv(readA, valueA) && Eq[A].eqv(readB, valueB) && Eq[A].neqv(readA, readB)
+
+  private def allocWriteAndReallocate(values: Seq[A], newCount: Int): (MemorySegment, MemorySegment) =
+    val oldSegment = allocator.allocate[A](values.length)
+    values.zipWithIndex.foreach { case (v, idx) => layout.write(idx, v)(using oldSegment) }
+    val newSegment = allocator.reallocate[A](oldSegment, values.length, newCount)
+    (oldSegment, newSegment)
+
+  private def valuesPreserved(oldSegment: MemorySegment, newSegment: MemorySegment, count: Int): Boolean =
+    (0 until count).forall { idx =>
+      Eq[A].eqv(layout.read(idx)(using oldSegment), layout.read(idx)(using newSegment))
+    }
 
   class AllocatorProperties(
                            name: String,
