@@ -24,17 +24,7 @@ class NativeVectorCorrectnessTest extends AnyFunSuite {
   private val DSZ = 8 // byteSize of Double
 
   /** Dump the raw bytes of a segment as a hex string for diagnostics. */
-  private def hexDump(seg: MemorySegment, max: Int = 256): String = {
-    val n = seg.byteSize().min(max).toInt
-    val buf = new StringBuilder(n * 3)
-    var i = 0
-    while (i < n) {
-      if (i > 0 && i % 16 == 0) buf ++= "\n"
-      buf ++= f"${seg.get(ValueLayout.JAVA_BYTE, i.toLong) & 0xff}%02x "
-      i += 1
-    }
-    buf.result()
-  }
+  
 
   // ═══════════════════════════════════════════════════════════════════
   // SECTION 1 – Raw Memory Segment Verification
@@ -276,7 +266,7 @@ class NativeVectorCorrectnessTest extends AnyFunSuite {
       (0 to initSize).foreach(v.addOne)   // adds initSize + 1 elements → triggers resize
       // After resize, wasted space should be bounded
       val waste = wastedBytes(v)
-      val maxWaste = expectedAllocSize[Int](initSize * 2) - (initSize + 1) * Layout[Int].byteSize
+      expectedAllocSize[Int](initSize * 2) - (initSize + 1) * Layout[Int].byteSize
       // A reasonable bound: at most (newCapacity - logicalCount) * byteSize
       assert(waste >= 0, s"negative waste at initSize=$initSize")
     }
@@ -284,7 +274,7 @@ class NativeVectorCorrectnessTest extends AnyFunSuite {
 
   test("alloc: segment size follows geometric growth during sequential add") {
     val v = NativeVector[Int](4)
-    val initialCap = v.storage.byteSize()
+    v.storage.byteSize()
     // expected: 4 → 8 → 16 → 32 → 64 → 128 → ...
     val expectedCaps = Seq(
       4  -> expectedAllocSize[Int](4),    // initial

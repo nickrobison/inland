@@ -6,7 +6,10 @@ import java.lang.foreign.MemorySegment
 import java.util.NoSuchElementException
 import scala.collection.mutable
 
-class NativeVector[A: Layout] private(private[collections] var storage: MemorySegment, initialSize: Int)(implicit allocator: NativeAllocator) extends mutable.AbstractBuffer[A] {
+class NativeVector[A: Layout] private (
+    private[collections] var storage: MemorySegment,
+    initialSize: Int)(implicit allocator: NativeAllocator)
+    extends mutable.AbstractBuffer[A] {
 
   private var currentSize: Int = 0
   private var capacity: Int = (storage.byteSize() / Layout[A].byteSize).toInt
@@ -43,7 +46,10 @@ class NativeVector[A: Layout] private(private[collections] var storage: MemorySe
 
   override def remove(idx: Int, count: Int): Unit = ???
 
-  override def patchInPlace(from: Int, patch: IterableOnce[A], replaced: Int): NativeVector.this.type = ???
+  override def patchInPlace(
+      from: Int,
+      patch: IterableOnce[A],
+      replaced: Int): NativeVector.this.type = ???
 
   override def addOne(elem: A): NativeVector.this.type = {
     insert(currentSize, elem)
@@ -103,6 +109,7 @@ class NativeVector[A: Layout] private(private[collections] var storage: MemorySe
 }
 
 object NativeVector {
+
   /** Create a new NativeVector with the given initial capacity. */
   def apply[A: Layout](initialSize: Int)(implicit allocator: NativeAllocator): NativeVector[A] = {
     val storage = allocator.allocate[A](initialSize)

@@ -1,12 +1,11 @@
 package com.nickrobison.inland.allocator.laws
 
 import cats.Eq
-import com.nickrobison.inland.allocator.{HeapAllocator, Layout, NativeAllocator}
+import com.nickrobison.inland.allocator.{HeapAllocator, Layout}
 import org.scalacheck.{Arbitrary, Gen, Prop}
 import org.scalacheck.Prop.forAll
 import org.typelevel.discipline.Laws
 
-import java.lang.foreign.MemorySegment
 
 trait LayoutLaws[A] extends Laws {
 
@@ -88,18 +87,17 @@ trait LayoutLaws[A] extends Laws {
     Eq[A].eqv(readA, valueA) && Eq[A].eqv(readB, valueB) && Eq[A].neqv(readA, readB)
 
   class LayoutProperties(
-                         name: String,
-                         parent: Option[LayoutProperties],
-                         props: (String, Prop)*
-                         ) extends DefaultRuleSet(name, parent, props*)
+      name: String,
+      parent: Option[LayoutProperties],
+      props: (String, Prop)*
+  ) extends DefaultRuleSet(name, parent, props*)
 }
 
 object LayoutLaws {
-  def apply[A: Layout](implicit l: Layout[A], arb: Arbitrary[A], eqz: Eq[A]): LayoutLaws[A] = new LayoutLaws[A] {
-    override implicit def layout: Layout[A] = l
-    override implicit def arbA: Arbitrary[A] = arb
-    override implicit def eq: Eq[A] = eqz
-  }
+  def apply[A: Layout](implicit l: Layout[A], arb: Arbitrary[A], eqz: Eq[A]): LayoutLaws[A] =
+    new LayoutLaws[A] {
+      override implicit def layout: Layout[A] = l
+      override implicit def arbA: Arbitrary[A] = arb
+      override implicit def eq: Eq[A] = eqz
+    }
 }
-
-

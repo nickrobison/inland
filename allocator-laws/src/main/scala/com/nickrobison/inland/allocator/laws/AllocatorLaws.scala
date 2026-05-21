@@ -84,7 +84,6 @@ trait AllocatorLaws[A] extends Laws {
     forAll { (values: Seq[A]) =>
       if (values.nonEmpty) {
 
-
         implicit val segment: MemorySegment = allocator.allocate[A](values.length)
         values.zipWithIndex.foreach { case (v, idx) =>
           layout.write(idx, v)
@@ -139,32 +138,38 @@ trait AllocatorLaws[A] extends Laws {
   private def nonAliasingValue(readA: A, readB: A, valueA: A, valueB: A): Boolean =
     Eq[A].eqv(readA, valueA) && Eq[A].eqv(readB, valueB) && Eq[A].neqv(readA, readB)
 
-  private def allocWriteAndReallocate(values: Seq[A], newCount: Int): (MemorySegment, MemorySegment) =
+  private def allocWriteAndReallocate(
+      values: Seq[A],
+      newCount: Int): (MemorySegment, MemorySegment) =
     val oldSegment = allocator.allocate[A](values.length)
     values.zipWithIndex.foreach { case (v, idx) => layout.write(idx, v)(using oldSegment) }
     val newSegment = allocator.reallocate[A](oldSegment, values.length, newCount)
     (oldSegment, newSegment)
 
-  private def valuesPreserved(oldSegment: MemorySegment, newSegment: MemorySegment, count: Int): Boolean =
+  private def valuesPreserved(
+      oldSegment: MemorySegment,
+      newSegment: MemorySegment,
+      count: Int): Boolean =
     (0 until count).forall { idx =>
       Eq[A].eqv(layout.read(idx)(using oldSegment), layout.read(idx)(using newSegment))
     }
 
   class AllocatorProperties(
-                           name: String,
-                           parent: Option[AllocatorProperties],
-                           props: (String, Prop)*
-                           ) extends DefaultRuleSet(name, parent, props*)
+      name: String,
+      parent: Option[AllocatorProperties],
+      props: (String, Prop)*
+  ) extends DefaultRuleSet(name, parent, props*)
 }
 
 object AllocatorLaws {
-  def apply[A: {Layout, Eq}](na: NativeAllocator)(implicit arb: Arbitrary[A]): AllocatorLaws[A] = new AllocatorLaws[A] {
-    override def allocator: NativeAllocator = na
+  def apply[A: Layout: Eq](na: NativeAllocator)(implicit arb: Arbitrary[A]): AllocatorLaws[A] =
+    new AllocatorLaws[A] {
+      override def allocator: NativeAllocator = na
 
-    override def arbA: Arbitrary[A] = arb
+      override def arbA: Arbitrary[A] = arb
 
-    override def eq: Eq[A] = Eq[A]
+      override def eq: Eq[A] = Eq[A]
 
-    override def layout: Layout[A] = Layout[A]
-  }
+      override def layout: Layout[A] = Layout[A]
+    }
 }

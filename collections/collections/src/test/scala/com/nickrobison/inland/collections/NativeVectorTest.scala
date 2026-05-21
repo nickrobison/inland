@@ -6,7 +6,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import scala.collection.mutable.ArrayBuffer
-import scala.util.Try
 
 class NativeVectorTest extends AnyFunSuite, ScalaCheckPropertyChecks {
 
@@ -27,8 +26,7 @@ class NativeVectorTest extends AnyFunSuite, ScalaCheckPropertyChecks {
     v
   }
 
-  private def asList(v: NativeVector[?]): List[?] =
-    v.iterator.toList
+  
 
   // ── 1. Construction and Initial State ────────────────────────────
 

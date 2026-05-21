@@ -3,13 +3,13 @@ package com.nickrobison.inland.allocator
 import java.lang.foreign.MemorySegment
 import java.nio.ByteBuffer
 
-/** Allocator backed by direct (off-heap) ByteBuffers.
-  *
-  * Despite the "heap" name, this uses `ByteBuffer.allocateDirect` to guarantee
-  * alignment so that aligned `ValueLayout` access (e.g. `JAVA_INT` not
-  * `JAVA_INT_UNALIGNED`) is legal on every segment.
-  * Each segment is independently allocated; there is no arena or pooling.
-  */
+/**
+ * Allocator backed by direct (off-heap) ByteBuffers.
+ *
+ * Despite the "heap" name, this uses `ByteBuffer.allocateDirect` to guarantee alignment so that
+ * aligned `ValueLayout` access (e.g. `JAVA_INT` not `JAVA_INT_UNALIGNED`) is legal on every
+ * segment. Each segment is independently allocated; there is no arena or pooling.
+ */
 class HeapAllocator extends NativeAllocator {
 
   override def allocate[A: Layout](count: Long): MemorySegment = {
@@ -18,7 +18,10 @@ class HeapAllocator extends NativeAllocator {
     MemorySegment.ofBuffer(buffer)
   }
 
-  override def reallocate[A: Layout](old: MemorySegment, oldCount: Long, newCount: Long): MemorySegment = {
+  override def reallocate[A: Layout](
+      old: MemorySegment,
+      oldCount: Long,
+      newCount: Long): MemorySegment = {
     val size = alignedSize(Layout[A].byteSize * newCount)
     val buffer = ByteBuffer.allocateDirect(size.toInt)
     val newSegment = MemorySegment.ofBuffer(buffer)

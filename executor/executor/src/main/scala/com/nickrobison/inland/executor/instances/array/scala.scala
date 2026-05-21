@@ -11,5 +11,4 @@ inline given arrayVector[A]: VectorBatch[Array, A] with {
 
   def isEmpty(fa: Array[A]): Boolean = size(fa) == 0
 
-
 }

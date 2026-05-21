@@ -3,9 +3,8 @@ package com.nickrobison.inland.allocator
 import java.lang.foreign.{Arena, MemorySegment}
 import scala.collection.mutable.ArrayBuffer
 
-
-
-class ArenaAllocator(arena: Arena, slabSize: Long, slabs: ArrayBuffer[MemorySegment]) extends NativeAllocator {
+class ArenaAllocator(arena: Arena, slabSize: Long, slabs: ArrayBuffer[MemorySegment])
+    extends NativeAllocator {
 
   private var slabOffset: Long = slabSize
 
@@ -32,7 +31,10 @@ class ArenaAllocator(arena: Arena, slabSize: Long, slabs: ArrayBuffer[MemorySegm
     }
   }
 
-  override def reallocate[A: Layout](old: MemorySegment, oldCount: Long, newCount: Long): MemorySegment = {
+  override def reallocate[A: Layout](
+      old: MemorySegment,
+      oldCount: Long,
+      newCount: Long): MemorySegment = {
     val newSegment = allocate(newCount)
     val copyBytes = math.min(oldCount, newCount) * Layout[A].byteSize
 
@@ -46,7 +48,7 @@ class ArenaAllocator(arena: Arena, slabSize: Long, slabs: ArrayBuffer[MemorySegm
 
   override def close(): Unit = arena.close()
 
-  private def alignUp(offset: Long, align: Long): Long = (offset + align - 1) & ~(align - 1)
+  
 
   private def openSlab(minBytes: Long): Unit = {
     val size = math.max(minBytes, slabSize)
@@ -57,5 +59,6 @@ class ArenaAllocator(arena: Arena, slabSize: Long, slabs: ArrayBuffer[MemorySegm
 }
 
 object ArenaAllocator {
-  def apply(size: Long)(using arena: Arena): ArenaAllocator = new ArenaAllocator(arena, size, ArrayBuffer.empty)
+  def apply(size: Long)(using arena: Arena): ArenaAllocator =
+    new ArenaAllocator(arena, size, ArrayBuffer.empty)
 }

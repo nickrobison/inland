@@ -1,9 +1,8 @@
 package com.nickrobison.inland.types
 
 /**
- * Unit conversion constants for byte multipliers
- * Decimal: powers of 1000 (kB, MB, GB, TB)
- * Binary: powers of 1024 (KiB, MiB, GiB, TiB)
+ * Unit conversion constants for byte multipliers Decimal: powers of 1000 (kB, MB, GB, TB) Binary:
+ * powers of 1024 (KiB, MiB, GiB, TiB)
  */
 private inline val DECIMAL_KB = 1000L
 private inline val DECIMAL_MB = DECIMAL_KB * 1000L
@@ -47,8 +46,8 @@ extension (value: Long)
   def tib: Bytes = checkedBytes(value * BINARY_TIB)
 
 /**
- * Extensions on Double for creating Bytes instances with various units
- * Values are truncated to Long precision
+ * Extensions on Double for creating Bytes instances with various units Values are truncated to Long
+ * precision
  */
 extension (value: Double)
   /** Create Bytes from a raw double byte count (truncated) */
