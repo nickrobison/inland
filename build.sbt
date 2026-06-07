@@ -4,6 +4,10 @@ lazy val scala2Version = "2.13.18"
 ThisBuild / scalaVersion := scala3Version
 ThisBuild / organization := "com.nickrobison.inland"
 ThisBuild / version := "0.0.1-SNAPSHOT"
+ThisBuild / javaOptions ++= Seq(
+  "--add-modules", "jdk.incubator.vector"
+)
+ThisBuild / Test / fork := true
 
 lazy val commonSettings = Seq(
   scalaVersion := scala3Version,
@@ -58,7 +62,8 @@ lazy val executor = (project in file("executor/executor"))
     name := "executor",
     libraryDependencies ++= Seq(
       "org.typelevel" %% "discipline-core" % "1.7.0" % Test,
-      "org.typelevel" %% "discipline-scalatest" % "2.3.0" % Test
+      "org.typelevel" %% "discipline-scalatest" % "2.3.0" % Test,
+      "org.typelevel" %% "cats-core" % "2.13.0"
     )
   )
 
