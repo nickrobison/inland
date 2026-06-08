@@ -60,9 +60,11 @@ private final class IntAlgebra(val species: VectorSpecies[Integer]) extends Bitw
 
   def blend(a: SimdVector[Int], b: SimdVector[Int], mask: VectorMask[Int]): SimdVector[Int] = ???
 
-  def fromArray(arr: Array[Int], offset: Int): SimdVector[Int] = ???
+  def fromArray(arr: Array[Int], offset: Int): SimdVector[Int] = SimdVector(toJVector(arr, offset)(using species))
 
-  def toArray(v: SimdVector[Int], arr: Array[Int], offset: Int): Unit = ???
+  def toArray(v: SimdVector[Int], arr: Array[Int], offset: Int): Unit = {
+    fromJVector[Int](v.underlying, arr, offset)(using species)
+  }
 
   // TODO: This could be a macro
   transparent inline def fromVectorBatch[F[_]](fa: F[Int], offset: Int)(using

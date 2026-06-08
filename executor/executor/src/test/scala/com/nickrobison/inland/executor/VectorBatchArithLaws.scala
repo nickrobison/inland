@@ -10,7 +10,7 @@ import org.typelevel.discipline.Laws
 /**
  * Verifies that [[ArithOps]] hold for the given [[VectorBatch]] instance
  */
-trait AirthOpsLaws[F[_], E] extends Laws {
+trait VectorBatchArithLaws[F[_], E] extends Laws {
 
   type Vec = F[E]
 
@@ -33,6 +33,6 @@ trait AirthOpsLaws[F[_], E] extends Laws {
 }
 
 object ArithOpsLaws {
-  def apply[F[_], E](using VectorBatch[F, E], ArithOps[E]): AirthOpsLaws[F, E] =
-    new AirthOpsLaws[F, E] {}
+  def apply[F[_], E](using VectorBatch[F, E], ArithOps[E]): VectorBatchArithLaws[F, E] =
+    new VectorBatchArithLaws[F, E] {}
 }
