@@ -1,6 +1,7 @@
 package com.nickrobison.inland.executor.instances.array
 
-import com.nickrobison.inland.executor.{ArithOps, BitwiseOps, JSpecies, SimdVector, VectorBatch, VectorOps, fromJVector, toJVector}
+import com.nickrobison.inland.executor.simd.{ArithOps, BitwiseOps, JSpecies, SimdVector, VectorOps, fromJVector, toJVector}
+import com.nickrobison.inland.executor.VectorBatch
 import jdk.incubator.vector.{DoubleVector, IntVector, VectorMask, VectorSpecies}
 
 inline given arrayVector[A]: VectorBatch[Array, A] with {

@@ -1,5 +1,6 @@
-package com.nickrobison.inland.executor
+package com.nickrobison.inland.executor.simd
 
+import com.nickrobison.inland.executor.VectorBatch
 import jdk.incubator.vector.VectorMask
 
 trait VectorOps[E] {

@@ -1,6 +1,7 @@
-package com.nickrobison.inland.executor
+package com.nickrobison.inland.executor.simd
 
 import com.nickrobison.inland.executor.instances.array.{DoubleInstances, arrayVector}
+import com.nickrobison.inland.executor.simd.{ArithOps, SimdVector}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 

@@ -7,6 +7,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.Checkers
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 import com.nickrobison.inland.executor.instances.array.given
+import com.nickrobison.inland.executor.simd.{BitwiseOps, SimdVector}
 
 import java.util
 

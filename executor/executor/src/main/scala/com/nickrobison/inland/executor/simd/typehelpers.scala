@@ -1,4 +1,4 @@
-package com.nickrobison.inland.executor
+package com.nickrobison.inland.executor.simd
 
 import jdk.incubator.vector.{DoubleVector, IntVector, VectorSpecies}
 

@@ -2,6 +2,7 @@ package com.nickrobison.inland.executor
 
 import cats.Eq
 import com.nickrobison.inland.executor.VectorBatch
+import com.nickrobison.inland.executor.simd.{ArithOps, SimdVector}
 import org.scalacheck.Arbitrary
 import org.scalacheck.Prop.forAll
 import org.typelevel.discipline.Laws
