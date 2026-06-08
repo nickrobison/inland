@@ -19,3 +19,10 @@ transparent inline def toJVector[A](arry: Array[A], offset: Int)(using species: 
   }
 }
 
+transparent inline def fromJVector[A](v: JVector[A], arry: Array[A], offset: Int)(using species: JSpecies[A]): Unit = {
+  inline arry match {
+    case x: Array[Int] => v.asInstanceOf[IntVector].intoArray(x, offset)
+    case x: Array[Double] => v.asInstanceOf[DoubleVector].intoArray(x, offset)
+  }
+}
+

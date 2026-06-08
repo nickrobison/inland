@@ -9,7 +9,7 @@
 //    inline def unary_~ : A.Vec = A.negate(lhs)
 //  }
 //}
-//
+
 //object bitwise {
 //  extension[F[_], E](lhs: VectorBatch[F, E])(using B: BitwiseOps[ E]) {
 //    // TODO: Rest
