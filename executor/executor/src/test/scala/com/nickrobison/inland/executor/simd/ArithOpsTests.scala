@@ -15,7 +15,7 @@ class ArithOpsTests extends AnyWordSpec with Matchers {
   "ArithOps[Double] SPECIES_256" should {
 
     "round-trip via fromArray/toArray" in {
-      store(alg.fromArray(x, 0)) shouldEqual x
+      store(alg.fromArr(x, 0)) shouldEqual x
     }
 
     "round-trip via VectorBatch" in {
@@ -23,25 +23,25 @@ class ArithOpsTests extends AnyWordSpec with Matchers {
     }
 
     "add lane-wise" in {
-      store(alg.plus(alg.fromArray(x, 0), alg.fromArray(y, 0))) shouldEqual Array(6.0, 8.0, 10.0, 12.0)
+      store(alg.plus(alg.fromArr(x, 0), alg.fromArr(y, 0))) shouldEqual Array(6.0, 8.0, 10.0, 12.0)
     }
 
     "subtract lane-wise" in {
-      store(alg.minus(alg.fromArray(y, 0), alg.fromArray(x, 0))) shouldEqual
+      store(alg.minus(alg.fromArr(y, 0), alg.fromArr(x, 0))) shouldEqual
         Array(4.0, 4.0, 4.0, 4.0)
     }
 
     "multiply lane-wise" in {
-      store(alg.mult(alg.fromArray(x, 0), alg.fromArray(y, 0))) shouldEqual
+      store(alg.mult(alg.fromArr(x, 0), alg.fromArr(y, 0))) shouldEqual
         Array(5.0, 12.0, 21.0, 32.0)
     }
 
     "negate all lanes" in {
-      store(alg.negate(alg.fromArray(x, 0))) shouldEqual Array(-1.0, -2.0, -3.0, -4.0)
+      store(alg.negate(alg.fromArr(x, 0))) shouldEqual Array(-1.0, -2.0, -3.0, -4.0)
     }
 
     "abs restores negative lanes" in {
-      store(alg.abs(alg.fromArray(Array(-1.0, -2.0, 3.0, -4.0), 0))) shouldEqual
+      store(alg.abs(alg.fromArr(Array(-1.0, -2.0, 3.0, -4.0), 0))) shouldEqual
         Array(1.0, 2.0, 3.0, 4.0)
     }
 
@@ -54,11 +54,11 @@ class ArithOpsTests extends AnyWordSpec with Matchers {
     }
 
     "reduceLanesAdd sums all lanes" ignore {
-      alg.reduceLanesAdd(alg.fromArray(x, 0)) shouldBe 10.0 +- 1e-12
+      alg.reduceLanesAdd(alg.fromArr(x, 0)) shouldBe 10.0 +- 1e-12
     }
 
     "fma: a*b+c" ignore {
-      store(alg.fma(alg.fromArray(x, 0), alg.fromArray(y, 0), alg.broadcast(1.0))) shouldEqual
+      store(alg.fma(alg.fromArr(x, 0), alg.fromArr(y, 0), alg.broadcast(1.0))) shouldEqual
         Array(6.0, 13.0, 22.0, 33.0)
     }
 

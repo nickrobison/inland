@@ -143,7 +143,7 @@ object ArithOpsLaws {
 
   extension [E](arr: Array[E])(using ops: ArithOps[E]) {
     def toSimd: SimdVector[E] = {
-      ops.fromArray(arr, 0)
+      ops.fromArr(arr, 0)
     }
   }
 

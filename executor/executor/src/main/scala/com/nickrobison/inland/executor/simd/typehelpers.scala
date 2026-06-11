@@ -8,8 +8,8 @@ type JSpecies[T] = T match {
 }
 
 type JVector[T] = T match {
-  case Int => jdk.incubator.vector.Vector[java.lang.Integer]
-  case Double => jdk.incubator.vector.Vector[java.lang.Double]
+  case Int => IntVector
+  case Double => DoubleVector
 }
 
 transparent inline def toJVector[A](arry: Array[A], offset: Int)(using

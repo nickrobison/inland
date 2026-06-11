@@ -26,7 +26,7 @@ trait VectorOps[E] {
   def toVectorBatch[F[_]](v: SimdVector[E], fa: F[E], offset: Int)(using
       vb: VectorBatch[F, E]): Unit
 
-  def fromArray(arr: Array[E], offset: Int): SimdVector[E]
+  def fromArr(arr: Array[E], offset: Int): SimdVector[E]
   def toArray(v: SimdVector[E], arr: Array[E], offset: Int): Unit
 
 }

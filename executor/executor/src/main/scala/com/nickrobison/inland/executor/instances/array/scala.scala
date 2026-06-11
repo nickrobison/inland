@@ -59,11 +59,11 @@ private final class IntAlgebra(val species: VectorSpecies[Integer]) extends Bitw
 
   def one: SimdVector[Int] = broadcast(1)
 
-  def reduceLanesAdd(v: SimdVector[Int]): Int = v.underlying.asInstanceOf[IntVector].reduceLanes(VectorOperators.ADD)
+  def reduceLanesAdd(v: SimdVector[Int]): Int = v.underlying.reduceLanes(VectorOperators.ADD)
 
   def blend(a: SimdVector[Int], b: SimdVector[Int], mask: VectorMask[Int]): SimdVector[Int] = ???
 
-  def fromArray(arr: Array[Int], offset: Int): SimdVector[Int] = SimdVector(toJVector(arr, offset)(using species))
+  def fromArr(arr: Array[Int], offset: Int): SimdVector[Int] = SimdVector(toJVector(arr, offset)(using species))
 
   def toArray(v: SimdVector[Int], arr: Array[Int], offset: Int): Unit = {
     fromJVector[Int](v.underlying, arr, offset)(using species)
@@ -145,15 +145,15 @@ private final class DoubleAlgebra(val species: JSpecies[Double]) extends Bitwise
 
   def one: SimdVector[Double] = broadcast(1.0)
 
-  def reduceLanesAdd(v: SimdVector[Double]): Double = v.underlying.asInstanceOf[DoubleVector].reduceLanes(VectorOperators.ADD)
+  def reduceLanesAdd(v: SimdVector[Double]): Double = v.underlying.reduceLanes(VectorOperators.ADD)
 
   def blend(a: SimdVector[Double], b: SimdVector[Double], mask: VectorMask[Double]): SimdVector[Double] = ???
 
   // TODO: This can be fully inlined into the parent trait, I think.
-  def fromArray(arr: Array[Double], offset: Int): SimdVector[Double] = SimdVector(toJVector(arr, offset)(using species))
+  def fromArr(arr: Array[Double], offset: Int): SimdVector[Double] = SimdVector(toJVector(arr, offset)(using species))
 
   def toArray(v: SimdVector[Double], arr: Array[Double], offset: Int): Unit = {
-  v.underlying.asInstanceOf[DoubleVector].intoArray(arr, offset)
+  v.underlying.intoArray(arr, offset)
   }
 
 
