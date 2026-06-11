@@ -11,7 +11,10 @@ trait VectorOps[E] {
 
   def broadcast(e: E): SimdVector[E]
 
+  // TODO: Can these be spire type classes?
   def zero: SimdVector[E]
+
+  def one: SimdVector[E]
 
   def reduceLanesAdd(v: SimdVector[E]): E
 

@@ -2,7 +2,7 @@ package com.nickrobison.inland.executor.instances.array
 
 import com.nickrobison.inland.executor.simd.{ArithOps, BitwiseOps, JSpecies, SimdVector, VectorOps, fromJVector, toJVector}
 import com.nickrobison.inland.executor.VectorBatch
-import jdk.incubator.vector.{DoubleVector, IntVector, VectorMask, VectorSpecies}
+import jdk.incubator.vector.{DoubleVector, IntVector, VectorMask, VectorOperators, VectorSpecies}
 
 inline given arrayVector[A]: VectorBatch[Array, A] with {
   def get(fa: Array[A], i: Int): A = fa(i)
@@ -21,6 +21,7 @@ object IntInstances {
 
   val intPreferred: BitwiseOps[Int] = forSpecies(IntVector.SPECIES_PREFERRED)
   val int64: BitwiseOps[Int] = forSpecies(IntVector.SPECIES_64)
+  val intMax: BitwiseOps[Int] = forSpecies(IntVector.SPECIES_MAX)
 }
 
 private final class IntAlgebra(val species: VectorSpecies[Integer]) extends BitwiseOps[Int] {
@@ -42,21 +43,23 @@ private final class IntAlgebra(val species: VectorSpecies[Integer]) extends Bitw
 
   def minus(a: SimdVector[Int], b: SimdVector[Int]): SimdVector[Int] = ???
 
-  def mult(a: SimdVector[Int], b: SimdVector[Int]): SimdVector[Int] = ???
+  def mult(a: SimdVector[Int], b: SimdVector[Int]): SimdVector[Int] = SimdVector(a.underlying.mul(b.underlying))
 
   def div(a: SimdVector[Int], b: SimdVector[Int]): SimdVector[Int] = ???
 
-  def negate(a: SimdVector[Int]): SimdVector[Int] = ???
+  def negate(a: SimdVector[Int]): SimdVector[Int] = SimdVector(a.underlying.neg())
 
-  def abs(a: SimdVector[Int]): SimdVector[Int] = ???
+  def abs(a: SimdVector[Int]): SimdVector[Int] = SimdVector(a.underlying.abs())
 
   def fma(a: SimdVector[Int], b: SimdVector[Int], c: SimdVector[Int]): SimdVector[Int] = ???
 
-  def broadcast(e: Int): SimdVector[Int] = ???
+  inline def broadcast(e: Int): SimdVector[Int] = SimdVector(IntVector.broadcast(species, e))
 
-  def zero: SimdVector[Int] = ???
+  def zero: SimdVector[Int] = broadcast(0)
 
-  def reduceLanesAdd(v: SimdVector[Int]): Int = ???
+  def one: SimdVector[Int] = broadcast(1)
+
+  def reduceLanesAdd(v: SimdVector[Int]): Int = v.underlying.asInstanceOf[IntVector].reduceLanes(VectorOperators.ADD)
 
   def blend(a: SimdVector[Int], b: SimdVector[Int], mask: VectorMask[Int]): SimdVector[Int] = ???
 
@@ -103,6 +106,7 @@ object DoubleInstances {
   private def forSpecies(sp: JSpecies[Double]): BitwiseOps[Double] = new DoubleAlgebra(sp)
 
   given double256: BitwiseOps[Double] = forSpecies(DoubleVector.SPECIES_256)
+  given double512: BitwiseOps[Double] = forSpecies(DoubleVector.SPECIES_512)
 }
 
 private final class DoubleAlgebra(val species: JSpecies[Double]) extends BitwiseOps[Double] {
@@ -135,20 +139,21 @@ private final class DoubleAlgebra(val species: JSpecies[Double]) extends Bitwise
   // TODO: How?
   def fma(a: SimdVector[Double], b: SimdVector[Double], c: SimdVector[Double]): SimdVector[Double] = ???
 
-  def broadcast(e: Double): SimdVector[Double] = SimdVector(DoubleVector.broadcast(species, e))
+  inline def broadcast(e: Double): SimdVector[Double] = SimdVector(DoubleVector.broadcast(species, e))
 
   def zero: SimdVector[Double] = broadcast(0)
 
-  // TODO: Can we do this with double vectors?
-  def reduceLanesAdd(v: SimdVector[Double]): Double = ???
+  def one: SimdVector[Double] = broadcast(1.0)
+
+  def reduceLanesAdd(v: SimdVector[Double]): Double = v.underlying.asInstanceOf[DoubleVector].reduceLanes(VectorOperators.ADD)
 
   def blend(a: SimdVector[Double], b: SimdVector[Double], mask: VectorMask[Double]): SimdVector[Double] = ???
 
   // TODO: This can be fully inlined into the parent trait, I think.
-  def fromArray(arr: Array[Double], offset: Int): SimdVector[Double] = SimdVector(DoubleVector.fromArray(species, arr, offset))
+  def fromArray(arr: Array[Double], offset: Int): SimdVector[Double] = SimdVector(toJVector(arr, offset)(using species))
 
   def toArray(v: SimdVector[Double], arr: Array[Double], offset: Int): Unit = {
-    v.underlying.asInstanceOf[DoubleVector].intoArray(arr, offset)
+  v.underlying.asInstanceOf[DoubleVector].intoArray(arr, offset)
   }
 
 
