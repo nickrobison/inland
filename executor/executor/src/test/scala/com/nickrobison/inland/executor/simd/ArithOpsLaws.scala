@@ -1,14 +1,16 @@
 package com.nickrobison.inland.executor.simd
 
-import com.nickrobison.inland.executor.simd.ArithOpsLaws.{toArray, toSimd}
 import org.scalacheck.Prop.*
 import org.scalacheck.{Arbitrary, Gen}
 import org.typelevel.discipline.Laws
+import spire.algebra.{Eq, Signed}
 
 import scala.reflect.ClassTag
 
-trait ArithOpsLaws[E: {ClassTag, Numeric}] extends Laws {
+trait ArithOpsLaws[E: {ClassTag, Numeric}] extends Laws with LawInstances {
 
+  given eqE: Eq[E] = scala.compiletime.deferred
+  given signedE: Signed[E] = scala.compiletime.deferred
   given arbE: Arbitrary[E] = scala.compiletime.deferred
 
   given arbArray(using ops: ArithOps[E]): Arbitrary[Array[E]] = Arbitrary(
@@ -32,6 +34,7 @@ trait ArithOpsLaws[E: {ClassTag, Numeric}] extends Laws {
   def absolute(using ArithOps[E]): RuleSet = new DefaultRuleSet(
     name = "absolute",
     parent = Some(addition),
+    "absolute is non-negative" -> forAll(absNonNegative),
     "absolute is idempotent" -> forAll(absIdempotent),
     "absolute -> negate -> absolute equality" -> forAll(absNegatesAbs),
     "negation involution" -> forAll(negateInvolution)
@@ -59,99 +62,96 @@ trait ArithOpsLaws[E: {ClassTag, Numeric}] extends Laws {
   )
 
   private def arrayRoundTrip(v: Array[E])(using ops: ArithOps[E]) = {
-    v.toSimd.toArray sameElements v
+    arrayEq(v.toSimd.toArray, v)
   }
 
   private def addCommutative(x: Array[E], y: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
     val yV = y.toSimd
-    ops.plus(xV, yV).toArray sameElements ops.plus(yV, xV).toArray
+    arrayEq(ops.plus(xV, yV).toArray, ops.plus(yV, xV).toArray)
   }
 
   private def addAssociative(x: Array[E], y: Array[E], z: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
     val yV = y.toSimd
     val zV = z.toSimd
-    ops.plus(ops.plus(xV, yV), zV).toArray sameElements ops.plus(xV, ops.plus(yV, zV)).toArray
+    arrayEq(ops.plus(ops.plus(xV, yV), zV).toArray, ops.plus(xV, ops.plus(yV, zV)).toArray)
   }
 
   private def addZero(x: Array[E])(using ops: ArithOps[E]) = {
-    ops.plus(x.toSimd, ops.zero).toArray sameElements x
+    arrayEq(ops.plus(x.toSimd, ops.zero).toArray, x)
   }
 
   private def addInverse(x: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
-    ops.plus(xV, ops.negate(xV)).toArray sameElements ops.zero.toArray
+    arrayEq(ops.plus(xV, ops.negate(xV)).toArray, ops.zero.toArray)
   }
 
   private def multCommutative(x: Array[E], y: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
     val yV = y.toSimd
-    ops.mult(xV, yV).toArray sameElements ops.mult(yV, xV).toArray
+    arrayEq(ops.mult(xV, yV).toArray, ops.mult(yV, xV).toArray)
   }
 
   private def multOneIdentity(x: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
-    ops.mult(xV, ops.one).toArray sameElements x
+    arrayEq(ops.mult(xV, ops.one).toArray, x)
   }
 
   private def multZeroAnhihilater(x: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
-    ops.mult(xV, ops.zero).toArray sameElements ops.zero.toArray
+    arrayEq(ops.mult(xV, ops.zero).toArray, ops.zero.toArray)
   }
 
   private def multDistributesOverAdds(x: Array[E], y: Array[E], z: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
     val yV = y.toSimd
     val zV = z.toSimd
-    ops.mult(xV, ops.plus(yV, zV)).toArray sameElements ops.plus(ops.mult(xV, yV), ops.mult(xV, zV)).toArray
+    val lhs = ops.mult(xV, ops.plus(yV, zV)).toArray
+    val rhs = ops.plus(ops.mult(xV, yV), ops.mult(xV, zV)).toArray
+    val ct = summon[ClassTag[E]]
+    lhs.zip(rhs).forall { (l, r) =>
+      if ct.runtimeClass == classOf[Double] then
+        val ld = l.asInstanceOf[Double]
+        val rd = r.asInstanceOf[Double]
+        !ld.isFinite || !rd.isFinite || eqE.eqv(l, r)
+      else eqE.eqv(l, r)
+    }
   }
 
-  // TODO: We need better comparisons here
-//  private def absNonNegative(x: Array[E])(using ops: ArithOps[E]) = {
-//    val xV = x.toSimd
-//    ops.abs(x)
-//  }
+  private def absNonNegative(x: Array[E])(using ops: ArithOps[E]) = {
+    val signed = summon[Signed[E]]
+    ops.abs(x.toSimd).toArray.zip(x).forall { (v, orig) =>
+      if orig == Int.MinValue.asInstanceOf[E] then true
+      else !signed.isSignNegative(v)
+    }
+  }
 
   private def absIdempotent(x: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
-    ops.abs(ops.abs(xV)).toArray sameElements ops.abs(xV).toArray
+    arrayEq(ops.abs(ops.abs(xV)).toArray, ops.abs(xV).toArray)
   }
 
   private def absNegatesAbs(x: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
-    ops.abs(ops.negate(xV)).toArray sameElements ops.abs(xV).toArray
+    arrayEq(ops.abs(ops.negate(xV)).toArray, ops.abs(xV).toArray)
   }
 
   private def negateInvolution(x: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
-    ops.negate(ops.negate(xV)).toArray sameElements x
+    arrayEq(ops.negate(ops.negate(xV)).toArray, x)
   }
 
   private def broadcastFillsAllLanes(x: E)(using ops: ArithOps[E]) = {
-    ops.broadcast(x).toArray.forall(_ == x)
+    ops.broadcast(x).toArray.forall(eqE.eqv(_, x))
   }
 
   private def reduceLanesEqualsScalar(x: Array[E])(using ops: ArithOps[E]) = {
-    ops.reduceLanesAdd(x.toSimd) == x.sum
+    eqE.eqv(ops.reduceLanesAdd(x.toSimd), x.sum)
   }
 
 }
 
-object ArithOpsLaws {
-  def apply[E: {ClassTag, Numeric}](using Arbitrary[E]): ArithOpsLaws[E] = new ArithOpsLaws[E] {}
-
-  extension [E](arr: Array[E])(using ops: ArithOps[E]) {
-    def toSimd: SimdVector[E] = {
-      ops.fromArr(arr, 0)
-    }
-  }
-
-  extension [E: ClassTag](v: SimdVector[E])(using ops: ArithOps[E]) {
-    def toArray: Array[E] = {
-      val out = new Array[E](ops.lanes)
-      ops.toArray(v, out, 0)
-      out
-    }
-  }
+object ArithOpsLaws extends LawInstances {
+  def apply[E: {ClassTag, Numeric}](using Arbitrary[E], Eq[E], Signed[E]): ArithOpsLaws[E] = new ArithOpsLaws[E] {}
 }

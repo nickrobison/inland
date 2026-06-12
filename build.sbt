@@ -63,7 +63,8 @@ lazy val executor = (project in file("executor/executor"))
     libraryDependencies ++= Seq(
       "org.typelevel" %% "discipline-core" % "1.7.0" % Test,
       "org.typelevel" %% "discipline-scalatest" % "2.3.0" % Test,
-      "org.typelevel" %% "cats-core" % "2.13.0"
+      "org.typelevel" %% "cats-core" % "2.13.0",
+      "org.typelevel" %% "spire" % "0.18.0"
     )
   )
 

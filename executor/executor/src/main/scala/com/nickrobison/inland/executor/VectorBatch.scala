@@ -19,6 +19,8 @@ trait VectorBatch[F[_], A] {
     arr
   }
 
+  def make(arr: Array[A]): F[A]
+
   inline def foldLeft[B](fa: F[A])(z: B)(inline f: (B, A) => B): B = {
     val n = size(fa)
     var acc = z

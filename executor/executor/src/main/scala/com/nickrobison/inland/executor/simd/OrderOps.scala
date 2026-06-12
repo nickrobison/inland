@@ -3,7 +3,7 @@ package com.nickrobison.inland.executor.simd
 import jdk.incubator.vector.VectorMask
 
 
-trait OrderOps[F[_], E] extends VectorOps[E] {
+trait OrderOps[E] extends VectorOps[E] {
 
   def lt(a: SimdVector[E], b: SimdVector[E]): VectorMask[E]
   def lte(a: SimdVector[E], b: SimdVector[E]): VectorMask[E]
