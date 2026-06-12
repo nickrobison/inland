@@ -50,8 +50,6 @@ class ArenaAllocator(arena: Arena, slabSize: Long, slabs: ArrayBuffer[MemorySegm
 
   override def close(): Unit = arena.close()
 
-  
-
   private def openSlab(minBytes: Long): Unit = {
     val size = math.max(minBytes, slabSize)
     val seg = arena.allocate(size)

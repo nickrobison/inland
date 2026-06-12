@@ -7,7 +7,6 @@ import org.scalacheck.{Arbitrary, Gen, Prop}
 import org.scalacheck.Prop.forAll
 import org.typelevel.discipline.Laws
 
-
 trait LayoutLaws[A] extends Laws {
 
   implicit def layout: Layout[A]

@@ -20,8 +20,7 @@ trait VectorOps[E] {
 
   def blend(a: SimdVector[E], b: SimdVector[E], mask: VectorMask[E]): SimdVector[E]
 
-  def fromVectorBatch[F[_]](fa: F[E], offset: Int)(using
-      vb: VectorBatch[F, E]): SimdVector[E]
+  def fromVectorBatch[F[_]](fa: F[E], offset: Int)(using vb: VectorBatch[F, E]): SimdVector[E]
 
   def toVectorBatch[F[_]](v: SimdVector[E], fa: F[E], offset: Int)(using
       vb: VectorBatch[F, E]): Unit

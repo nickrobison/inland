@@ -4,7 +4,6 @@ import io.github.iltotore.iron.RefinedType
 import io.github.iltotore.iron.constraint.all.{Greater, Positive}
 import io.github.iltotore.iron.constraint.any.DescribedAs
 
-
 type Alignment = Alignment.T
 object Alignment extends RefinedType[Int, Positive & Mod2]
 

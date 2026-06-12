@@ -1,6 +1,15 @@
 package com.nickrobison.inland.executor.instances.array
 
-import com.nickrobison.inland.executor.simd.{ArithOps, BitwiseOps, JSpecies, OrderOps, SimdVector, VectorOps, fromJVector, toJVector}
+import com.nickrobison.inland.executor.simd.{
+  ArithOps,
+  BitwiseOps,
+  JSpecies,
+  OrderOps,
+  SimdVector,
+  VectorOps,
+  fromJVector,
+  toJVector
+}
 import com.nickrobison.inland.executor.VectorBatch
 import jdk.incubator.vector.{DoubleVector, IntVector, VectorMask, VectorOperators, VectorSpecies}
 import scala.reflect.ClassTag
@@ -75,7 +84,6 @@ private final class IntAlgebra(val species: VectorSpecies[Integer]) extends Bitw
   def reduceLanesMax(a: SimdVector[Int]): Int =
     a.underlying.reduceLanes(VectorOperators.MAX)
 
-
   inline def broadcast(e: Int): SimdVector[Int] = SimdVector(IntVector.broadcast(species, e))
   def zero: SimdVector[Int] = broadcast(0)
   def one: SimdVector[Int] = broadcast(1)
@@ -83,7 +91,8 @@ private final class IntAlgebra(val species: VectorSpecies[Integer]) extends Bitw
   def reduceLanesAdd(v: SimdVector[Int]): Int = v.underlying.reduceLanes(VectorOperators.ADD)
   def blend(a: SimdVector[Int], b: SimdVector[Int], mask: VectorMask[Int]): SimdVector[Int] = ???
 
-  def fromArr(arr: Array[Int], offset: Int): SimdVector[Int] = SimdVector(toJVector(arr, offset)(using species))
+  def fromArr(arr: Array[Int], offset: Int): SimdVector[Int] = SimdVector(
+    toJVector(arr, offset)(using species))
   def toArray(v: SimdVector[Int], arr: Array[Int], offset: Int): Unit =
     fromJVector[Int](v.underlying, arr, offset)(using species)
 
@@ -119,10 +128,11 @@ private final class IntAlgebra(val species: VectorSpecies[Integer]) extends Bitw
 }
 
 object DoubleInstances {
-  private def forSpecies(sp: JSpecies[Double]): OrderOps[Double] & BitwiseOps[Double] = new DoubleAlgebra(sp)
+  private def forSpecies(sp: JSpecies[Double]): OrderOps[Double] & BitwiseOps[Double] =
+    new DoubleAlgebra(sp)
 
-  given double256: OrderOps[Double] & BitwiseOps[Double] = forSpecies(DoubleVector.SPECIES_256)
-  given double512: OrderOps[Double] & BitwiseOps[Double] = forSpecies(DoubleVector.SPECIES_512)
+  given double256: (OrderOps[Double] & BitwiseOps[Double]) = forSpecies(DoubleVector.SPECIES_256)
+  given double512: (OrderOps[Double] & BitwiseOps[Double]) = forSpecies(DoubleVector.SPECIES_512)
 }
 
 private final class DoubleAlgebra(val species: JSpecies[Double]) extends BitwiseOps[Double] {
@@ -144,7 +154,8 @@ private final class DoubleAlgebra(val species: JSpecies[Double]) extends Bitwise
   def div(a: SimdVector[Double], b: SimdVector[Double]): SimdVector[Double] = ???
   def negate(a: SimdVector[Double]): SimdVector[Double] = SimdVector(a.underlying.neg())
   def abs(a: SimdVector[Double]): SimdVector[Double] = SimdVector(a.underlying.abs())
-  def fma(a: SimdVector[Double], b: SimdVector[Double], c: SimdVector[Double]): SimdVector[Double] = ???
+  def fma(a: SimdVector[Double], b: SimdVector[Double], c: SimdVector[Double]): SimdVector[Double] =
+    ???
 
   def lt(a: SimdVector[Double], b: SimdVector[Double]): VectorMask[Double] =
     a.underlying.compare(VectorOperators.LT, b.underlying).asInstanceOf[VectorMask[Double]]
@@ -163,13 +174,16 @@ private final class DoubleAlgebra(val species: JSpecies[Double]) extends Bitwise
   def reduceLanesMax(a: SimdVector[Double]): Double =
     a.underlying.reduceLanes(VectorOperators.MAX)
 
-
-  inline def broadcast(e: Double): SimdVector[Double] = SimdVector(DoubleVector.broadcast(species, e))
+  inline def broadcast(e: Double): SimdVector[Double] = SimdVector(
+    DoubleVector.broadcast(species, e))
   def zero: SimdVector[Double] = broadcast(0)
   def one: SimdVector[Double] = broadcast(1.0)
 
   def reduceLanesAdd(v: SimdVector[Double]): Double = v.underlying.reduceLanes(VectorOperators.ADD)
-  def blend(a: SimdVector[Double], b: SimdVector[Double], mask: VectorMask[Double]): SimdVector[Double] = ???
+  def blend(
+      a: SimdVector[Double],
+      b: SimdVector[Double],
+      mask: VectorMask[Double]): SimdVector[Double] = ???
 
   def fromArr(arr: Array[Double], offset: Int): SimdVector[Double] =
     SimdVector(toJVector(arr, offset)(using species))
@@ -191,8 +205,8 @@ private final class DoubleAlgebra(val species: JSpecies[Double]) extends Bitwise
     }
   }
 
-  transparent inline def toVectorBatch[F[_]](v: SimdVector[Double], fa: F[Double], offset: Int)(using
-      vb: VectorBatch[F, Double]): Unit = {
+  transparent inline def toVectorBatch[F[_]](v: SimdVector[Double], fa: F[Double], offset: Int)(
+      using vb: VectorBatch[F, Double]): Unit = {
     inline fa match {
       case arr: Array[Double] => fromJVector[Double](v.underlying, arr, offset)(using species)
       case _ =>

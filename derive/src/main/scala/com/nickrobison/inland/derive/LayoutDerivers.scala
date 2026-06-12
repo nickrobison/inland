@@ -29,6 +29,6 @@ object LayoutDerivers {
 
   def derivedMacro[T: Type](using Quotes): Expr[Layout2[T]] = ???
 
-  inline def derived[A]: Layout2[A] = ${ derivedMacro[A]}
+  inline def derived[A]: Layout2[A] = ${ derivedMacro[A] }
 
 }
