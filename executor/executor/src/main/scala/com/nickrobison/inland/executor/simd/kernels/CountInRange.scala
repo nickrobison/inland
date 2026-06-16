@@ -2,10 +2,13 @@ package com.nickrobison.inland.executor.simd.kernels
 
 import com.nickrobison.inland.executor.VectorBatch
 import com.nickrobison.inland.executor.simd.OrderOps
+import jdk.incubator.vector.VectorMask
 
-class CountInRange {
+object CountInRange {
 
-  def apply[E, F[_]](values: F[E], lower: E, upper: E)(using alg: OrderOps[E], tc: VectorBatch[F, E]): Int = {
+  def apply[E, F[_]](values: F[E], lower: E, upper: E)(using
+      alg: OrderOps[E],
+      tc: VectorBatch[F, E]): Int = {
 
     val lo = alg.broadcast(lower)
     val hi = alg.broadcast(upper)
@@ -20,14 +23,20 @@ class CountInRange {
       val ge = alg.gte(v, lo)
       val le = alg.lte(v, hi)
 
-      var lane = 0
-      while (lane < lanes) {
-        if (ge.laneIsSet(lane) && le.laneIsSet(lane)) {
-          count += 1
-        }
-        lane += 1
-      }
+      count += handleComparison(ge, le, lanes)
       i += lanes
+    }
+    count
+  }
+
+  private def handleComparison[E](ge: VectorMask[E], le: VectorMask[E], lanes: Int): Int = {
+    var count = 0
+    var lane = 0
+    while (lane < lanes) {
+      if (ge.laneIsSet(lane) && le.laneIsSet(lane)) {
+        count += 1
+      }
+      lane += 1
     }
     count
   }

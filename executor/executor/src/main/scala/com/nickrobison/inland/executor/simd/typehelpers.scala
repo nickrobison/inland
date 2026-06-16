@@ -1,6 +1,13 @@
 package com.nickrobison.inland.executor.simd
 
-import jdk.incubator.vector.{DoubleVector, FloatVector, IntVector, LongVector, ShortVector, VectorSpecies}
+import jdk.incubator.vector.{
+  DoubleVector,
+  FloatVector,
+  IntVector,
+  LongVector,
+  ShortVector,
+  VectorSpecies
+}
 
 type JSpecies[T] = T match {
   case Int => VectorSpecies[java.lang.Integer]

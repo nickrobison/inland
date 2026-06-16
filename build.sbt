@@ -1,6 +1,8 @@
 lazy val scala3Version = "3.8.3"
 lazy val scala2Version = "2.13.18"
 
+lazy val spireVersion = "0.18.0"
+
 ThisBuild / scalaVersion := scala3Version
 ThisBuild / organization := "com.nickrobison.inland"
 ThisBuild / version := "0.0.1-SNAPSHOT"
@@ -67,7 +69,8 @@ lazy val executor = (project in file("executor/executor"))
       "org.typelevel" %% "discipline-core" % "1.7.0" % Test,
       "org.typelevel" %% "discipline-scalatest" % "2.3.0" % Test,
       "org.typelevel" %% "cats-core" % "2.13.0",
-      "org.typelevel" %% "spire" % "0.18.0"
+      "org.typelevel" %% "spire" % spireVersion,
+      "org.typelevel" %% "spire-laws" % spireVersion % Test
     )
   )
 

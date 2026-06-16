@@ -12,7 +12,16 @@ import com.nickrobison.inland.executor.simd.{
   toJVector
 }
 import com.nickrobison.inland.executor.VectorBatch
-import jdk.incubator.vector.{DoubleVector, FloatVector, IntVector, LongVector, ShortVector, VectorMask, VectorOperators, VectorSpecies}
+import jdk.incubator.vector.{
+  DoubleVector,
+  FloatVector,
+  IntVector,
+  LongVector,
+  ShortVector,
+  VectorMask,
+  VectorOperators,
+  VectorSpecies
+}
 import scala.reflect.ClassTag
 
 inline given arrayVector[A]: VectorBatch[Array, A] with {
@@ -129,14 +138,19 @@ private final class IntAlgebra(val species: VectorSpecies[Integer]) extends Bitw
 }
 
 object DoubleInstances {
-  private[array] def forSpecies(sp: JSpecies[Double]): OrderOps[Double] & BitwiseOps[Double] & FloatOps[Double] =
+  private[array] def forSpecies(
+      sp: JSpecies[Double]): OrderOps[Double] & BitwiseOps[Double] & FloatOps[Double] =
     new DoubleAlgebra(sp)
 
-  given double256: (OrderOps[Double] & BitwiseOps[Double] & FloatOps[Double]) = forSpecies(DoubleVector.SPECIES_256)
-  given double512: (OrderOps[Double] & BitwiseOps[Double] & FloatOps[Double]) = forSpecies(DoubleVector.SPECIES_512)
+  given double256: (OrderOps[Double] & BitwiseOps[Double] & FloatOps[Double]) = forSpecies(
+    DoubleVector.SPECIES_256)
+  given double512: (OrderOps[Double] & BitwiseOps[Double] & FloatOps[Double]) = forSpecies(
+    DoubleVector.SPECIES_512)
 }
 
-private final class DoubleAlgebra(val species: JSpecies[Double]) extends BitwiseOps[Double] with FloatOps[Double] {
+private final class DoubleAlgebra(val species: JSpecies[Double])
+    extends BitwiseOps[Double]
+    with FloatOps[Double] {
 
   def and(a: SimdVector[Double], b: SimdVector[Double]): SimdVector[Double] = ???
   def or(a: SimdVector[Double], b: SimdVector[Double]): SimdVector[Double] = ???
@@ -237,14 +251,19 @@ private final class DoubleAlgebra(val species: JSpecies[Double]) extends Bitwise
 }
 
 object FloatInstances {
-  private[array] def forSpecies(sp: JSpecies[Float]): OrderOps[Float] & BitwiseOps[Float] & FloatOps[Float] =
+  private[array] def forSpecies(
+      sp: JSpecies[Float]): OrderOps[Float] & BitwiseOps[Float] & FloatOps[Float] =
     new FloatAlgebra(sp)
 
-  given float256: (OrderOps[Float] & BitwiseOps[Float] & FloatOps[Float]) = forSpecies(FloatVector.SPECIES_256)
-  given float512: (OrderOps[Float] & BitwiseOps[Float] & FloatOps[Float]) = forSpecies(FloatVector.SPECIES_512)
+  given float256: (OrderOps[Float] & BitwiseOps[Float] & FloatOps[Float]) = forSpecies(
+    FloatVector.SPECIES_256)
+  given float512: (OrderOps[Float] & BitwiseOps[Float] & FloatOps[Float]) = forSpecies(
+    FloatVector.SPECIES_512)
 }
 
-private final class FloatAlgebra(val species: JSpecies[Float]) extends BitwiseOps[Float] with FloatOps[Float] {
+private final class FloatAlgebra(val species: JSpecies[Float])
+    extends BitwiseOps[Float]
+    with FloatOps[Float] {
 
   def and(a: SimdVector[Float], b: SimdVector[Float]): SimdVector[Float] = ???
   def or(a: SimdVector[Float], b: SimdVector[Float]): SimdVector[Float] = ???
@@ -297,8 +316,7 @@ private final class FloatAlgebra(val species: JSpecies[Float]) extends BitwiseOp
   def reduceLanesMax(a: SimdVector[Float]): Float =
     a.underlying.reduceLanes(VectorOperators.MAX)
 
-  inline def broadcast(e: Float): SimdVector[Float] = SimdVector(
-    FloatVector.broadcast(species, e))
+  inline def broadcast(e: Float): SimdVector[Float] = SimdVector(FloatVector.broadcast(species, e))
   def zero: SimdVector[Float] = broadcast(0)
   def one: SimdVector[Float] = broadcast(1.0f)
 
@@ -328,8 +346,8 @@ private final class FloatAlgebra(val species: JSpecies[Float]) extends BitwiseOp
     }
   }
 
-  transparent inline def toVectorBatch[F[_]](v: SimdVector[Float], fa: F[Float], offset: Int)(
-      using vb: VectorBatch[F, Float]): Unit = {
+  transparent inline def toVectorBatch[F[_]](v: SimdVector[Float], fa: F[Float], offset: Int)(using
+      vb: VectorBatch[F, Float]): Unit = {
     inline fa match {
       case arr: Array[Float] => fromJVector[Float](v.underlying, arr, offset)(using species)
       case _ =>
@@ -345,14 +363,16 @@ private final class FloatAlgebra(val species: JSpecies[Float]) extends BitwiseOp
 }
 
 object LongInstances {
-  private[array] def forSpecies(sp: JSpecies[Long]): BitwiseOps[Long] & OrderOps[Long] = new LongAlgebra(sp)
+  private[array] def forSpecies(sp: JSpecies[Long]): BitwiseOps[Long] & OrderOps[Long] =
+    new LongAlgebra(sp)
 
   val long256: BitwiseOps[Long] & OrderOps[Long] = forSpecies(LongVector.SPECIES_256)
   val longPref: BitwiseOps[Long] & OrderOps[Long] = forSpecies(LongVector.SPECIES_PREFERRED)
   val longMax: BitwiseOps[Long] & OrderOps[Long] = forSpecies(LongVector.SPECIES_MAX)
 }
 
-private final class LongAlgebra(val species: VectorSpecies[java.lang.Long]) extends BitwiseOps[Long] {
+private final class LongAlgebra(val species: VectorSpecies[java.lang.Long])
+    extends BitwiseOps[Long] {
 
   def and(a: SimdVector[Long], b: SimdVector[Long]): SimdVector[Long] =
     SimdVector(a.underlying.and(b.underlying))
@@ -403,7 +423,8 @@ private final class LongAlgebra(val species: VectorSpecies[java.lang.Long]) exte
   def one: SimdVector[Long] = broadcast(1L)
 
   def reduceLanesAdd(v: SimdVector[Long]): Long = v.underlying.reduceLanes(VectorOperators.ADD)
-  def blend(a: SimdVector[Long], b: SimdVector[Long], mask: VectorMask[Long]): SimdVector[Long] = ???
+  def blend(a: SimdVector[Long], b: SimdVector[Long], mask: VectorMask[Long]): SimdVector[Long] =
+    ???
 
   def fromArr(arr: Array[Long], offset: Int): SimdVector[Long] = SimdVector(
     toJVector(arr, offset)(using species))
@@ -442,14 +463,16 @@ private final class LongAlgebra(val species: VectorSpecies[java.lang.Long]) exte
 }
 
 object ShortInstances {
-  private[array] def forSpecies(sp: JSpecies[Short]): BitwiseOps[Short] & OrderOps[Short] = new ShortAlgebra(sp)
+  private[array] def forSpecies(sp: JSpecies[Short]): BitwiseOps[Short] & OrderOps[Short] =
+    new ShortAlgebra(sp)
 
   val short128: BitwiseOps[Short] & OrderOps[Short] = forSpecies(ShortVector.SPECIES_128)
   val shortPref: BitwiseOps[Short] & OrderOps[Short] = forSpecies(ShortVector.SPECIES_PREFERRED)
   val shortMax: BitwiseOps[Short] & OrderOps[Short] = forSpecies(ShortVector.SPECIES_MAX)
 }
 
-private final class ShortAlgebra(val species: VectorSpecies[java.lang.Short]) extends BitwiseOps[Short] {
+private final class ShortAlgebra(val species: VectorSpecies[java.lang.Short])
+    extends BitwiseOps[Short] {
 
   def and(a: SimdVector[Short], b: SimdVector[Short]): SimdVector[Short] =
     SimdVector(a.underlying.and(b.underlying))
@@ -500,7 +523,10 @@ private final class ShortAlgebra(val species: VectorSpecies[java.lang.Short]) ex
   def one: SimdVector[Short] = broadcast(1.toShort)
 
   def reduceLanesAdd(v: SimdVector[Short]): Short = v.underlying.reduceLanes(VectorOperators.ADD)
-  def blend(a: SimdVector[Short], b: SimdVector[Short], mask: VectorMask[Short]): SimdVector[Short] = ???
+  def blend(
+      a: SimdVector[Short],
+      b: SimdVector[Short],
+      mask: VectorMask[Short]): SimdVector[Short] = ???
 
   def fromArr(arr: Array[Short], offset: Int): SimdVector[Short] = SimdVector(
     toJVector(arr, offset)(using species))
