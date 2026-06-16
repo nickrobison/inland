@@ -3,6 +3,7 @@ package com.nickrobison.inland.executor.instances.array
 import com.nickrobison.inland.executor.simd.{
   ArithOps,
   BitwiseOps,
+  FloatOps,
   JSpecies,
   OrderOps,
   SimdVector,
@@ -11,7 +12,7 @@ import com.nickrobison.inland.executor.simd.{
   toJVector
 }
 import com.nickrobison.inland.executor.VectorBatch
-import jdk.incubator.vector.{DoubleVector, IntVector, VectorMask, VectorOperators, VectorSpecies}
+import jdk.incubator.vector.{DoubleVector, FloatVector, IntVector, VectorMask, VectorOperators, VectorSpecies}
 import scala.reflect.ClassTag
 
 inline given arrayVector[A]: VectorBatch[Array, A] with {
@@ -128,14 +129,14 @@ private final class IntAlgebra(val species: VectorSpecies[Integer]) extends Bitw
 }
 
 object DoubleInstances {
-  private def forSpecies(sp: JSpecies[Double]): OrderOps[Double] & BitwiseOps[Double] =
+  private[array] def forSpecies(sp: JSpecies[Double]): OrderOps[Double] & BitwiseOps[Double] & FloatOps[Double] =
     new DoubleAlgebra(sp)
 
-  given double256: (OrderOps[Double] & BitwiseOps[Double]) = forSpecies(DoubleVector.SPECIES_256)
-  given double512: (OrderOps[Double] & BitwiseOps[Double]) = forSpecies(DoubleVector.SPECIES_512)
+  given double256: (OrderOps[Double] & BitwiseOps[Double] & FloatOps[Double]) = forSpecies(DoubleVector.SPECIES_256)
+  given double512: (OrderOps[Double] & BitwiseOps[Double] & FloatOps[Double]) = forSpecies(DoubleVector.SPECIES_512)
 }
 
-private final class DoubleAlgebra(val species: JSpecies[Double]) extends BitwiseOps[Double] {
+private final class DoubleAlgebra(val species: JSpecies[Double]) extends BitwiseOps[Double] with FloatOps[Double] {
 
   def and(a: SimdVector[Double], b: SimdVector[Double]): SimdVector[Double] = ???
   def or(a: SimdVector[Double], b: SimdVector[Double]): SimdVector[Double] = ???
@@ -151,11 +152,25 @@ private final class DoubleAlgebra(val species: JSpecies[Double]) extends Bitwise
     SimdVector(a.underlying.sub(b.underlying))
   def mult(a: SimdVector[Double], b: SimdVector[Double]): SimdVector[Double] =
     SimdVector(a.underlying.mul(b.underlying))
-  def div(a: SimdVector[Double], b: SimdVector[Double]): SimdVector[Double] = ???
+  def div(a: SimdVector[Double], b: SimdVector[Double]): SimdVector[Double] =
+    SimdVector(a.underlying.div(b.underlying))
   def negate(a: SimdVector[Double]): SimdVector[Double] = SimdVector(a.underlying.neg())
   def abs(a: SimdVector[Double]): SimdVector[Double] = SimdVector(a.underlying.abs())
   def fma(a: SimdVector[Double], b: SimdVector[Double], c: SimdVector[Double]): SimdVector[Double] =
-    ???
+    SimdVector(a.underlying.fma(b.underlying, c.underlying))
+
+  def sqrt(a: SimdVector[Double]): SimdVector[Double] =
+    SimdVector(a.underlying.lanewise(VectorOperators.SQRT))
+  def reciprocal(a: SimdVector[Double]): SimdVector[Double] =
+    div(broadcast(1.0), a)
+  def sin(a: SimdVector[Double]): SimdVector[Double] =
+    SimdVector(a.underlying.lanewise(VectorOperators.SIN))
+  def cos(a: SimdVector[Double]): SimdVector[Double] =
+    SimdVector(a.underlying.lanewise(VectorOperators.COS))
+  def log(a: SimdVector[Double]): SimdVector[Double] =
+    SimdVector(a.underlying.lanewise(VectorOperators.LOG))
+  def exp(a: SimdVector[Double]): SimdVector[Double] =
+    SimdVector(a.underlying.lanewise(VectorOperators.EXP))
 
   def lt(a: SimdVector[Double], b: SimdVector[Double]): VectorMask[Double] =
     a.underlying.compare(VectorOperators.LT, b.underlying).asInstanceOf[VectorMask[Double]]
@@ -211,6 +226,114 @@ private final class DoubleAlgebra(val species: JSpecies[Double]) extends Bitwise
       case arr: Array[Double] => fromJVector[Double](v.underlying, arr, offset)(using species)
       case _ =>
         val scratch = new Array[Double](lanes)
+        v.underlying.intoArray(scratch, 0)
+        var i = 0
+        while (i < lanes) {
+          vb.set(fa, offset + i, scratch(i))
+          i += 1
+        }
+    }
+  }
+}
+
+object FloatInstances {
+  private[array] def forSpecies(sp: JSpecies[Float]): OrderOps[Float] & BitwiseOps[Float] & FloatOps[Float] =
+    new FloatAlgebra(sp)
+
+  given float256: (OrderOps[Float] & BitwiseOps[Float] & FloatOps[Float]) = forSpecies(FloatVector.SPECIES_256)
+  given float512: (OrderOps[Float] & BitwiseOps[Float] & FloatOps[Float]) = forSpecies(FloatVector.SPECIES_512)
+}
+
+private final class FloatAlgebra(val species: JSpecies[Float]) extends BitwiseOps[Float] with FloatOps[Float] {
+
+  def and(a: SimdVector[Float], b: SimdVector[Float]): SimdVector[Float] = ???
+  def or(a: SimdVector[Float], b: SimdVector[Float]): SimdVector[Float] = ???
+  def xor(a: SimdVector[Float], b: SimdVector[Float]): SimdVector[Float] = ???
+  def not(a: SimdVector[Float]): SimdVector[Float] = ???
+  def shiftLeft(a: SimdVector[Float], n: Int): SimdVector[Float] = ???
+  def shiftRight(a: SimdVector[Float], n: Int): SimdVector[Float] = ???
+  def signedRightRigh(a: SimdVector[Float], n: Int): SimdVector[Float] = ???
+
+  def plus(a: SimdVector[Float], b: SimdVector[Float]): SimdVector[Float] =
+    SimdVector(a.underlying.add(b.underlying))
+  def minus(a: SimdVector[Float], b: SimdVector[Float]): SimdVector[Float] =
+    SimdVector(a.underlying.sub(b.underlying))
+  def mult(a: SimdVector[Float], b: SimdVector[Float]): SimdVector[Float] =
+    SimdVector(a.underlying.mul(b.underlying))
+  def div(a: SimdVector[Float], b: SimdVector[Float]): SimdVector[Float] =
+    SimdVector(a.underlying.div(b.underlying))
+  def negate(a: SimdVector[Float]): SimdVector[Float] = SimdVector(a.underlying.neg())
+  def abs(a: SimdVector[Float]): SimdVector[Float] = SimdVector(a.underlying.abs())
+  def fma(a: SimdVector[Float], b: SimdVector[Float], c: SimdVector[Float]): SimdVector[Float] =
+    SimdVector(a.underlying.fma(b.underlying, c.underlying))
+
+  def sqrt(a: SimdVector[Float]): SimdVector[Float] =
+    SimdVector(a.underlying.lanewise(VectorOperators.SQRT))
+  def reciprocal(a: SimdVector[Float]): SimdVector[Float] =
+    div(broadcast(1.0f), a)
+  def sin(a: SimdVector[Float]): SimdVector[Float] =
+    SimdVector(a.underlying.lanewise(VectorOperators.SIN))
+  def cos(a: SimdVector[Float]): SimdVector[Float] =
+    SimdVector(a.underlying.lanewise(VectorOperators.COS))
+  def log(a: SimdVector[Float]): SimdVector[Float] =
+    SimdVector(a.underlying.lanewise(VectorOperators.LOG))
+  def exp(a: SimdVector[Float]): SimdVector[Float] =
+    SimdVector(a.underlying.lanewise(VectorOperators.EXP))
+
+  def lt(a: SimdVector[Float], b: SimdVector[Float]): VectorMask[Float] =
+    a.underlying.compare(VectorOperators.LT, b.underlying).asInstanceOf[VectorMask[Float]]
+  def lte(a: SimdVector[Float], b: SimdVector[Float]): VectorMask[Float] =
+    a.underlying.compare(VectorOperators.LE, b.underlying).asInstanceOf[VectorMask[Float]]
+  def gt(a: SimdVector[Float], b: SimdVector[Float]): VectorMask[Float] =
+    a.underlying.compare(VectorOperators.GT, b.underlying).asInstanceOf[VectorMask[Float]]
+  def gte(a: SimdVector[Float], b: SimdVector[Float]): VectorMask[Float] =
+    a.underlying.compare(VectorOperators.GE, b.underlying).asInstanceOf[VectorMask[Float]]
+  def min(a: SimdVector[Float], b: SimdVector[Float]): SimdVector[Float] =
+    SimdVector(a.underlying.min(b.underlying))
+  def max(a: SimdVector[Float], b: SimdVector[Float]): SimdVector[Float] =
+    SimdVector(a.underlying.max(b.underlying))
+  def reduceLanesMin(a: SimdVector[Float]): Float =
+    a.underlying.reduceLanes(VectorOperators.MIN)
+  def reduceLanesMax(a: SimdVector[Float]): Float =
+    a.underlying.reduceLanes(VectorOperators.MAX)
+
+  inline def broadcast(e: Float): SimdVector[Float] = SimdVector(
+    FloatVector.broadcast(species, e))
+  def zero: SimdVector[Float] = broadcast(0)
+  def one: SimdVector[Float] = broadcast(1.0f)
+
+  def reduceLanesAdd(v: SimdVector[Float]): Float = v.underlying.reduceLanes(VectorOperators.ADD)
+  def blend(
+      a: SimdVector[Float],
+      b: SimdVector[Float],
+      mask: VectorMask[Float]): SimdVector[Float] = ???
+
+  def fromArr(arr: Array[Float], offset: Int): SimdVector[Float] =
+    SimdVector(toJVector(arr, offset)(using species))
+  def toArray(v: SimdVector[Float], arr: Array[Float], offset: Int): Unit =
+    v.underlying.intoArray(arr, offset)
+
+  transparent inline def fromVectorBatch[F[_]](fa: F[Float], offset: Int)(using
+      vb: VectorBatch[F, Float]): SimdVector[Float] = {
+    inline fa match {
+      case arr: Array[Float] => SimdVector(toJVector(arr, offset)(using species))
+      case _ =>
+        val scratch = new Array[Float](lanes)
+        var i = 0
+        while (i < lanes) {
+          scratch(i) = vb.get(fa, offset + i)
+          i += 1
+        }
+        SimdVector(toJVector(scratch, 0)(using species))
+    }
+  }
+
+  transparent inline def toVectorBatch[F[_]](v: SimdVector[Float], fa: F[Float], offset: Int)(
+      using vb: VectorBatch[F, Float]): Unit = {
+    inline fa match {
+      case arr: Array[Float] => fromJVector[Float](v.underlying, arr, offset)(using species)
+      case _ =>
+        val scratch = new Array[Float](lanes)
         v.underlying.intoArray(scratch, 0)
         var i = 0
         while (i < lanes) {

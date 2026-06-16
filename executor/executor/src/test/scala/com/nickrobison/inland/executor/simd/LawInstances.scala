@@ -19,8 +19,16 @@ trait LawInstances extends AnyInstances {
       else if !x.isFinite || !y.isFinite then false
       else Math.abs(x - y) / Math.max(Math.abs(x), Math.abs(y)) < 1e-12
 
+  given Eq[Float] with
+    def eqv(x: Float, y: Float): Boolean =
+      if x == y then true
+      else if x.isNaN && y.isNaN then true
+      else if !x.isFinite || !y.isFinite then false
+      else Math.abs(x - y) / Math.max(Math.abs(x), Math.abs(y)) < 1e-6f
+
   given Signed[Int] = new spire.std.IntAlgebra
   given Signed[Double] = new spire.std.DoubleAlgebra
+  given Signed[Float] = new spire.std.FloatAlgebra
 
   extension [E](arr: Array[E])(using ops: VectorOps[E]) {
     def toSimd: SimdVector[E] =

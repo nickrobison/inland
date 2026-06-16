@@ -116,6 +116,10 @@ trait ArithOpsLaws[E: {ClassTag, Numeric}] extends Laws with LawInstances {
         val ld = l.asInstanceOf[Double]
         val rd = r.asInstanceOf[Double]
         !ld.isFinite || !rd.isFinite || eqE.eqv(l, r)
+      else if ct.runtimeClass == classOf[Float] then
+        val lf = l.asInstanceOf[Float]
+        val rf = r.asInstanceOf[Float]
+        !lf.isFinite || !rf.isFinite || eqE.eqv(l, r)
       else eqE.eqv(l, r)
     }
   }

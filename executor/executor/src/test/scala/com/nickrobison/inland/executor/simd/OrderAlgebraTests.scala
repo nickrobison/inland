@@ -1,6 +1,6 @@
 package com.nickrobison.inland.executor.simd
 
-import com.nickrobison.inland.executor.instances.array.{DoubleInstances, IntInstances}
+import com.nickrobison.inland.executor.instances.array.{DoubleInstances, FloatInstances, IntInstances}
 import com.nickrobison.inland.executor.simd.ArithOpsLaws.given
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
@@ -18,4 +18,7 @@ class OrderAlgebraTests extends AnyFunSuite with FunSuiteDiscipline with Checker
 
   checkAll("Double[256]OrderTests", OrderOpsLaws[Double].laws(using DoubleInstances.double256))
   checkAll("Double[512]OrderTests", OrderOpsLaws[Double].laws(using DoubleInstances.double512))
+
+  checkAll("Float[256]OrderTests", OrderOpsLaws[Float].laws(using FloatInstances.float256))
+  checkAll("Float[512]OrderTests", OrderOpsLaws[Float].laws(using FloatInstances.float512))
 }

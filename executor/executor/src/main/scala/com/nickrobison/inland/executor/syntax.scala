@@ -1,6 +1,6 @@
 package com.nickrobison.inland.executor
 
-import com.nickrobison.inland.executor.simd.{ArithOps, BitwiseOps, OrderOps, SimdVector}
+import com.nickrobison.inland.executor.simd.{ArithOps, BitwiseOps, FloatOps, OrderOps, SimdVector}
 import jdk.incubator.vector.VectorMask
 
 object arith {
@@ -30,5 +30,12 @@ object ord {
     inline def <=(rhs: SimdVector[E]): VectorMask[E] = O.lte(lhs, rhs)
     inline def >(rhs: SimdVector[E]): VectorMask[E] = O.gt(lhs, rhs)
     inline def >=(rhs: SimdVector[E]): VectorMask[E] = O.gte(lhs, rhs)
+  }
+}
+
+object floating {
+  extension [E](lhs: SimdVector[E])(using F: FloatOps[E]) {
+    inline def sqrt: SimdVector[E] = F.sqrt(lhs)
+    inline def reciprocal: SimdVector[E] = F.reciprocal(lhs)
   }
 }
