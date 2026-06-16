@@ -8,6 +8,9 @@ ThisBuild / javaOptions ++= Seq(
   "--add-modules", "jdk.incubator.vector"
 )
 ThisBuild / Test / fork := true
+ThisBuild / Test / javaOptions ++= Seq(
+  "--add-modules", "jdk.incubator.vector"
+)
 
 lazy val commonSettings = Seq(
   scalaVersion := scala3Version,

@@ -12,7 +12,7 @@ import com.nickrobison.inland.executor.simd.{
   toJVector
 }
 import com.nickrobison.inland.executor.VectorBatch
-import jdk.incubator.vector.{DoubleVector, FloatVector, IntVector, VectorMask, VectorOperators, VectorSpecies}
+import jdk.incubator.vector.{DoubleVector, FloatVector, IntVector, LongVector, ShortVector, VectorMask, VectorOperators, VectorSpecies}
 import scala.reflect.ClassTag
 
 inline given arrayVector[A]: VectorBatch[Array, A] with {
@@ -334,6 +334,200 @@ private final class FloatAlgebra(val species: JSpecies[Float]) extends BitwiseOp
       case arr: Array[Float] => fromJVector[Float](v.underlying, arr, offset)(using species)
       case _ =>
         val scratch = new Array[Float](lanes)
+        v.underlying.intoArray(scratch, 0)
+        var i = 0
+        while (i < lanes) {
+          vb.set(fa, offset + i, scratch(i))
+          i += 1
+        }
+    }
+  }
+}
+
+object LongInstances {
+  private[array] def forSpecies(sp: JSpecies[Long]): BitwiseOps[Long] & OrderOps[Long] = new LongAlgebra(sp)
+
+  val long256: BitwiseOps[Long] & OrderOps[Long] = forSpecies(LongVector.SPECIES_256)
+  val longPref: BitwiseOps[Long] & OrderOps[Long] = forSpecies(LongVector.SPECIES_PREFERRED)
+  val longMax: BitwiseOps[Long] & OrderOps[Long] = forSpecies(LongVector.SPECIES_MAX)
+}
+
+private final class LongAlgebra(val species: VectorSpecies[java.lang.Long]) extends BitwiseOps[Long] {
+
+  def and(a: SimdVector[Long], b: SimdVector[Long]): SimdVector[Long] =
+    SimdVector(a.underlying.and(b.underlying))
+  def or(a: SimdVector[Long], b: SimdVector[Long]): SimdVector[Long] =
+    SimdVector(a.underlying.or(b.underlying))
+  def xor(a: SimdVector[Long], b: SimdVector[Long]): SimdVector[Long] =
+    SimdVector(a.underlying.lanewise(VectorOperators.XOR, b.underlying))
+  def not(a: SimdVector[Long]): SimdVector[Long] =
+    SimdVector(a.underlying.lanewise(VectorOperators.NOT))
+  def shiftLeft(a: SimdVector[Long], n: Int): SimdVector[Long] =
+    SimdVector(a.underlying.lanewise(VectorOperators.LSHL, n))
+  def shiftRight(a: SimdVector[Long], n: Int): SimdVector[Long] =
+    SimdVector(a.underlying.lanewise(VectorOperators.LSHR, n))
+  def signedRightRigh(a: SimdVector[Long], n: Int): SimdVector[Long] =
+    SimdVector(a.underlying.lanewise(VectorOperators.ASHR, n))
+
+  def plus(a: SimdVector[Long], b: SimdVector[Long]): SimdVector[Long] =
+    SimdVector(a.underlying.add(b.underlying))
+  def minus(a: SimdVector[Long], b: SimdVector[Long]): SimdVector[Long] =
+    SimdVector(a.underlying.sub(b.underlying))
+  def mult(a: SimdVector[Long], b: SimdVector[Long]): SimdVector[Long] =
+    SimdVector(a.underlying.mul(b.underlying))
+  def div(a: SimdVector[Long], b: SimdVector[Long]): SimdVector[Long] =
+    SimdVector(a.underlying.div(b.underlying))
+  def negate(a: SimdVector[Long]): SimdVector[Long] = SimdVector(a.underlying.neg())
+  def abs(a: SimdVector[Long]): SimdVector[Long] = SimdVector(a.underlying.abs())
+  def fma(a: SimdVector[Long], b: SimdVector[Long], c: SimdVector[Long]): SimdVector[Long] = ???
+
+  def lt(a: SimdVector[Long], b: SimdVector[Long]): VectorMask[Long] =
+    a.underlying.compare(VectorOperators.LT, b.underlying).asInstanceOf[VectorMask[Long]]
+  def lte(a: SimdVector[Long], b: SimdVector[Long]): VectorMask[Long] =
+    a.underlying.compare(VectorOperators.LE, b.underlying).asInstanceOf[VectorMask[Long]]
+  def gt(a: SimdVector[Long], b: SimdVector[Long]): VectorMask[Long] =
+    a.underlying.compare(VectorOperators.GT, b.underlying).asInstanceOf[VectorMask[Long]]
+  def gte(a: SimdVector[Long], b: SimdVector[Long]): VectorMask[Long] =
+    a.underlying.compare(VectorOperators.GE, b.underlying).asInstanceOf[VectorMask[Long]]
+  def min(a: SimdVector[Long], b: SimdVector[Long]): SimdVector[Long] =
+    SimdVector(a.underlying.min(b.underlying))
+  def max(a: SimdVector[Long], b: SimdVector[Long]): SimdVector[Long] =
+    SimdVector(a.underlying.max(b.underlying))
+  def reduceLanesMin(a: SimdVector[Long]): Long =
+    a.underlying.reduceLanes(VectorOperators.MIN)
+  def reduceLanesMax(a: SimdVector[Long]): Long =
+    a.underlying.reduceLanes(VectorOperators.MAX)
+
+  inline def broadcast(e: Long): SimdVector[Long] = SimdVector(LongVector.broadcast(species, e))
+  def zero: SimdVector[Long] = broadcast(0L)
+  def one: SimdVector[Long] = broadcast(1L)
+
+  def reduceLanesAdd(v: SimdVector[Long]): Long = v.underlying.reduceLanes(VectorOperators.ADD)
+  def blend(a: SimdVector[Long], b: SimdVector[Long], mask: VectorMask[Long]): SimdVector[Long] = ???
+
+  def fromArr(arr: Array[Long], offset: Int): SimdVector[Long] = SimdVector(
+    toJVector(arr, offset)(using species))
+  def toArray(v: SimdVector[Long], arr: Array[Long], offset: Int): Unit =
+    fromJVector[Long](v.underlying, arr, offset)(using species)
+
+  transparent inline def fromVectorBatch[F[_]](fa: F[Long], offset: Int)(using
+      vb: VectorBatch[F, Long]): SimdVector[Long] = {
+    inline fa match {
+      case arr: Array[Long] => SimdVector(toJVector(arr, offset)(using species))
+      case _ =>
+        val scratch = new Array[Long](lanes)
+        var i = 0
+        while (i < lanes) {
+          scratch(i) = vb.get(fa, offset + i)
+          i += 1
+        }
+        SimdVector(toJVector(scratch, 0)(using species))
+    }
+  }
+
+  transparent inline def toVectorBatch[F[_]](v: SimdVector[Long], fa: F[Long], offset: Int)(using
+      vb: VectorBatch[F, Long]): Unit = {
+    inline fa match {
+      case arr: Array[Long] => fromJVector[Long](v.underlying, arr, offset)(using species)
+      case _ =>
+        val scratch = new Array[Long](lanes)
+        v.underlying.intoArray(scratch, 0)
+        var i = 0
+        while (i < lanes) {
+          vb.set(fa, offset + i, scratch(i))
+          i += 1
+        }
+    }
+  }
+}
+
+object ShortInstances {
+  private[array] def forSpecies(sp: JSpecies[Short]): BitwiseOps[Short] & OrderOps[Short] = new ShortAlgebra(sp)
+
+  val short128: BitwiseOps[Short] & OrderOps[Short] = forSpecies(ShortVector.SPECIES_128)
+  val shortPref: BitwiseOps[Short] & OrderOps[Short] = forSpecies(ShortVector.SPECIES_PREFERRED)
+  val shortMax: BitwiseOps[Short] & OrderOps[Short] = forSpecies(ShortVector.SPECIES_MAX)
+}
+
+private final class ShortAlgebra(val species: VectorSpecies[java.lang.Short]) extends BitwiseOps[Short] {
+
+  def and(a: SimdVector[Short], b: SimdVector[Short]): SimdVector[Short] =
+    SimdVector(a.underlying.and(b.underlying))
+  def or(a: SimdVector[Short], b: SimdVector[Short]): SimdVector[Short] =
+    SimdVector(a.underlying.or(b.underlying))
+  def xor(a: SimdVector[Short], b: SimdVector[Short]): SimdVector[Short] =
+    SimdVector(a.underlying.lanewise(VectorOperators.XOR, b.underlying))
+  def not(a: SimdVector[Short]): SimdVector[Short] =
+    SimdVector(a.underlying.lanewise(VectorOperators.NOT))
+  def shiftLeft(a: SimdVector[Short], n: Int): SimdVector[Short] =
+    SimdVector(a.underlying.lanewise(VectorOperators.LSHL, n))
+  def shiftRight(a: SimdVector[Short], n: Int): SimdVector[Short] =
+    SimdVector(a.underlying.lanewise(VectorOperators.LSHR, n))
+  def signedRightRigh(a: SimdVector[Short], n: Int): SimdVector[Short] =
+    SimdVector(a.underlying.lanewise(VectorOperators.ASHR, n))
+
+  def plus(a: SimdVector[Short], b: SimdVector[Short]): SimdVector[Short] =
+    SimdVector(a.underlying.add(b.underlying))
+  def minus(a: SimdVector[Short], b: SimdVector[Short]): SimdVector[Short] =
+    SimdVector(a.underlying.sub(b.underlying))
+  def mult(a: SimdVector[Short], b: SimdVector[Short]): SimdVector[Short] =
+    SimdVector(a.underlying.mul(b.underlying))
+  def div(a: SimdVector[Short], b: SimdVector[Short]): SimdVector[Short] =
+    SimdVector(a.underlying.div(b.underlying))
+  def negate(a: SimdVector[Short]): SimdVector[Short] = SimdVector(a.underlying.neg())
+  def abs(a: SimdVector[Short]): SimdVector[Short] = SimdVector(a.underlying.abs())
+  def fma(a: SimdVector[Short], b: SimdVector[Short], c: SimdVector[Short]): SimdVector[Short] = ???
+
+  def lt(a: SimdVector[Short], b: SimdVector[Short]): VectorMask[Short] =
+    a.underlying.compare(VectorOperators.LT, b.underlying).asInstanceOf[VectorMask[Short]]
+  def lte(a: SimdVector[Short], b: SimdVector[Short]): VectorMask[Short] =
+    a.underlying.compare(VectorOperators.LE, b.underlying).asInstanceOf[VectorMask[Short]]
+  def gt(a: SimdVector[Short], b: SimdVector[Short]): VectorMask[Short] =
+    a.underlying.compare(VectorOperators.GT, b.underlying).asInstanceOf[VectorMask[Short]]
+  def gte(a: SimdVector[Short], b: SimdVector[Short]): VectorMask[Short] =
+    a.underlying.compare(VectorOperators.GE, b.underlying).asInstanceOf[VectorMask[Short]]
+  def min(a: SimdVector[Short], b: SimdVector[Short]): SimdVector[Short] =
+    SimdVector(a.underlying.min(b.underlying))
+  def max(a: SimdVector[Short], b: SimdVector[Short]): SimdVector[Short] =
+    SimdVector(a.underlying.max(b.underlying))
+  def reduceLanesMin(a: SimdVector[Short]): Short =
+    a.underlying.reduceLanes(VectorOperators.MIN)
+  def reduceLanesMax(a: SimdVector[Short]): Short =
+    a.underlying.reduceLanes(VectorOperators.MAX)
+
+  inline def broadcast(e: Short): SimdVector[Short] = SimdVector(ShortVector.broadcast(species, e))
+  def zero: SimdVector[Short] = broadcast(0.toShort)
+  def one: SimdVector[Short] = broadcast(1.toShort)
+
+  def reduceLanesAdd(v: SimdVector[Short]): Short = v.underlying.reduceLanes(VectorOperators.ADD)
+  def blend(a: SimdVector[Short], b: SimdVector[Short], mask: VectorMask[Short]): SimdVector[Short] = ???
+
+  def fromArr(arr: Array[Short], offset: Int): SimdVector[Short] = SimdVector(
+    toJVector(arr, offset)(using species))
+  def toArray(v: SimdVector[Short], arr: Array[Short], offset: Int): Unit =
+    fromJVector[Short](v.underlying, arr, offset)(using species)
+
+  transparent inline def fromVectorBatch[F[_]](fa: F[Short], offset: Int)(using
+      vb: VectorBatch[F, Short]): SimdVector[Short] = {
+    inline fa match {
+      case arr: Array[Short] => SimdVector(toJVector(arr, offset)(using species))
+      case _ =>
+        val scratch = new Array[Short](lanes)
+        var i = 0
+        while (i < lanes) {
+          scratch(i) = vb.get(fa, offset + i)
+          i += 1
+        }
+        SimdVector(toJVector(scratch, 0)(using species))
+    }
+  }
+
+  transparent inline def toVectorBatch[F[_]](v: SimdVector[Short], fa: F[Short], offset: Int)(using
+      vb: VectorBatch[F, Short]): Unit = {
+    inline fa match {
+      case arr: Array[Short] => fromJVector[Short](v.underlying, arr, offset)(using species)
+      case _ =>
+        val scratch = new Array[Short](lanes)
         v.underlying.intoArray(scratch, 0)
         var i = 0
         while (i < lanes) {

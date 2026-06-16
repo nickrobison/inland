@@ -118,6 +118,10 @@ trait BitwiseOpsLaws[E: {ClassTag, Numeric}] extends Laws with LawInstances {
     while (i < ops.lanes) {
       val expected = if ct.runtimeClass == classOf[Int] then
         (xArr(i).asInstanceOf[Int] >>> 8) << 8
+      else if ct.runtimeClass == classOf[Long] then
+        (xArr(i).asInstanceOf[Long] >>> 8) << 8
+      else if ct.runtimeClass == classOf[Short] then
+        ((xArr(i).asInstanceOf[Short] & 0xFFFF) >>> 8 << 8).toShort
       else xArr(i)
       if !eqE.eqv(sArr(i), expected.asInstanceOf[E]) then return false
       i += 1
