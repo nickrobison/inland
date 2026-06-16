@@ -1,5 +1,6 @@
 package com.nickrobison.inland.executor.simd
 
+import com.nickrobison.inland.executor.bitwise.*
 import org.scalacheck.Prop.*
 import org.scalacheck.{Arbitrary, Gen}
 import org.typelevel.discipline.Laws
@@ -54,62 +55,62 @@ trait BitwiseOpsLaws[E: {ClassTag, Numeric}] extends Laws with LawInstances {
     arrayEq(v.toSimd.toArray, v)
 
   private def andIdentity(x: Array[E])(using ops: BitwiseOps[E]): Boolean =
-    arrayEq(ops.and(x.toSimd, ops.zero).toArray, ops.zero.toArray)
+    arrayEq((x.toSimd & ops.zero).toArray, ops.zero.toArray)
 
   private def orIdentity(x: Array[E])(using ops: BitwiseOps[E]): Boolean =
-    arrayEq(ops.or(x.toSimd, ops.zero).toArray, x)
+    arrayEq((x.toSimd | ops.zero).toArray, x)
 
   private def xorInverse(x: Array[E])(using ops: BitwiseOps[E]): Boolean =
-    arrayEq(ops.xor(x.toSimd, x.toSimd).toArray, ops.zero.toArray)
+    arrayEq((x.toSimd ^ x.toSimd).toArray, ops.zero.toArray)
 
   private def notInvolution(x: Array[E])(using ops: BitwiseOps[E]): Boolean =
-    arrayEq(ops.not(ops.not(x.toSimd)).toArray, x)
+    arrayEq((~(~(x.toSimd))).toArray, x)
 
   private def andCommutative(x: Array[E], y: Array[E])(using ops: BitwiseOps[E]): Boolean = {
     val xV = x.toSimd
     val yV = y.toSimd
-    arrayEq(ops.and(xV, yV).toArray, ops.and(yV, xV).toArray)
+    arrayEq((xV & yV).toArray, (yV & xV).toArray)
   }
 
   private def orCommutative(x: Array[E], y: Array[E])(using ops: BitwiseOps[E]): Boolean = {
     val xV = x.toSimd
     val yV = y.toSimd
-    arrayEq(ops.or(xV, yV).toArray, ops.or(yV, xV).toArray)
+    arrayEq((xV | yV).toArray, (yV | xV).toArray)
   }
 
   private def xorCommutative(x: Array[E], y: Array[E])(using ops: BitwiseOps[E]): Boolean = {
     val xV = x.toSimd
     val yV = y.toSimd
-    arrayEq(ops.xor(xV, yV).toArray, ops.xor(yV, xV).toArray)
+    arrayEq((xV ^ yV).toArray, (yV ^ xV).toArray)
   }
 
   private def deMorganAnd(x: Array[E], y: Array[E])(using ops: BitwiseOps[E]): Boolean = {
     val xV = x.toSimd
     val yV = y.toSimd
-    val lhs = ops.not(ops.and(xV, yV))
-    val rhs = ops.or(ops.not(xV), ops.not(yV))
+    val lhs = ~(xV & yV)
+    val rhs = (~xV) | (~yV)
     arrayEq(lhs.toArray, rhs.toArray)
   }
 
   private def deMorganOr(x: Array[E], y: Array[E])(using ops: BitwiseOps[E]): Boolean = {
     val xV = x.toSimd
     val yV = y.toSimd
-    val lhs = ops.not(ops.or(xV, yV))
-    val rhs = ops.and(ops.not(xV), ops.not(yV))
+    val lhs = ~(xV | yV)
+    val rhs = (~xV) & (~yV)
     arrayEq(lhs.toArray, rhs.toArray)
   }
 
   private def shiftLeftIdentity(x: Array[E])(using ops: BitwiseOps[E]): Boolean =
-    arrayEq(ops.shiftLeft(x.toSimd, 0).toArray, x)
+    arrayEq((x.toSimd << 0).toArray, x)
 
   private def shiftRightIdentity(x: Array[E])(using ops: BitwiseOps[E]): Boolean =
-    arrayEq(ops.shiftRight(x.toSimd, 0).toArray, x)
+    arrayEq((x.toSimd >> 0).toArray, x)
 
   private def signedRightShiftIdentity(x: Array[E])(using ops: BitwiseOps[E]): Boolean =
     arrayEq(ops.signedRightRigh(x.toSimd, 0).toArray, x)
 
   private def shiftRightLeft(x: Array[E])(using ops: BitwiseOps[E]): Boolean = {
-    val shifted = ops.shiftLeft(ops.shiftRight(x.toSimd, 8), 8)
+    val shifted = (x.toSimd >> 8) << 8
     val ct = summon[ClassTag[E]]
     val xArr = x
     val sArr = shifted.toArray

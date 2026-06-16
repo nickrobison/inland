@@ -1,5 +1,6 @@
 package com.nickrobison.inland.executor.simd
 
+import com.nickrobison.inland.executor.arith.*
 import com.nickrobison.inland.executor.instances.array.{DoubleInstances, arrayVector}
 import com.nickrobison.inland.executor.simd.{ArithOps, SimdVector}
 import org.scalatest.matchers.should.Matchers
@@ -62,10 +63,10 @@ class ArithOpsTests extends AnyWordSpec with Matchers {
         Array(6.0, 13.0, 22.0, 33.0)
     }
 
-//    "operator syntax `x` inlines correctly" in {
-//      store(alg.fromArray(x, 0) + alg.fromArray(y, 0)) shouldEqual
-//        Array(6.0, 8.0, 10.0, 12.0)
-//    }
+    "operator syntax `+` works" in {
+      store(alg.fromArr(x, 0) + alg.fromArr(y, 0)) shouldEqual
+        Array(6.0, 8.0, 10.0, 12.0)
+    }
   }
 
   private inline def store(v: SimdVector[Double]): Array[Double] = {

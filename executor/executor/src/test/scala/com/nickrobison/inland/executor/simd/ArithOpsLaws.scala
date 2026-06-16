@@ -1,5 +1,6 @@
 package com.nickrobison.inland.executor.simd
 
+import com.nickrobison.inland.executor.arith.*
 import org.scalacheck.Prop.*
 import org.scalacheck.{Arbitrary, Gen}
 import org.typelevel.discipline.Laws
@@ -68,47 +69,47 @@ trait ArithOpsLaws[E: {ClassTag, Numeric}] extends Laws with LawInstances {
   private def addCommutative(x: Array[E], y: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
     val yV = y.toSimd
-    arrayEq(ops.plus(xV, yV).toArray, ops.plus(yV, xV).toArray)
+    arrayEq((xV + yV).toArray, (yV + xV).toArray)
   }
 
   private def addAssociative(x: Array[E], y: Array[E], z: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
     val yV = y.toSimd
     val zV = z.toSimd
-    arrayEq(ops.plus(ops.plus(xV, yV), zV).toArray, ops.plus(xV, ops.plus(yV, zV)).toArray)
+    arrayEq(((xV + yV) + zV).toArray, (xV + (yV + zV)).toArray)
   }
 
   private def addZero(x: Array[E])(using ops: ArithOps[E]) = {
-    arrayEq(ops.plus(x.toSimd, ops.zero).toArray, x)
+    arrayEq((x.toSimd + ops.zero).toArray, x)
   }
 
   private def addInverse(x: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
-    arrayEq(ops.plus(xV, ops.negate(xV)).toArray, ops.zero.toArray)
+    arrayEq((xV + (-xV)).toArray, ops.zero.toArray)
   }
 
   private def multCommutative(x: Array[E], y: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
     val yV = y.toSimd
-    arrayEq(ops.mult(xV, yV).toArray, ops.mult(yV, xV).toArray)
+    arrayEq((xV * yV).toArray, (yV * xV).toArray)
   }
 
   private def multOneIdentity(x: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
-    arrayEq(ops.mult(xV, ops.one).toArray, x)
+    arrayEq((xV * ops.one).toArray, x)
   }
 
   private def multZeroAnhihilater(x: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
-    arrayEq(ops.mult(xV, ops.zero).toArray, ops.zero.toArray)
+    arrayEq((xV * ops.zero).toArray, ops.zero.toArray)
   }
 
   private def multDistributesOverAdds(x: Array[E], y: Array[E], z: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
     val yV = y.toSimd
     val zV = z.toSimd
-    val lhs = ops.mult(xV, ops.plus(yV, zV)).toArray
-    val rhs = ops.plus(ops.mult(xV, yV), ops.mult(xV, zV)).toArray
+    val lhs = (xV * (yV + zV)).toArray
+    val rhs = ((xV * yV) + (xV * zV)).toArray
     val ct = summon[ClassTag[E]]
     lhs.zip(rhs).forall { (l, r) =>
       if ct.runtimeClass == classOf[Double] then
@@ -134,12 +135,12 @@ trait ArithOpsLaws[E: {ClassTag, Numeric}] extends Laws with LawInstances {
 
   private def absNegatesAbs(x: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
-    arrayEq(ops.abs(ops.negate(xV)).toArray, ops.abs(xV).toArray)
+    arrayEq(ops.abs(-xV).toArray, ops.abs(xV).toArray)
   }
 
   private def negateInvolution(x: Array[E])(using ops: ArithOps[E]) = {
     val xV = x.toSimd
-    arrayEq(ops.negate(ops.negate(xV)).toArray, x)
+    arrayEq((-(-xV)).toArray, x)
   }
 
   private def broadcastFillsAllLanes(x: E)(using ops: ArithOps[E]) = {
